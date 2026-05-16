@@ -9,7 +9,7 @@
 
 ---
 
-## 🎯 Filosofia
+## 🎯 FILOSOFIA
 
 | Princípio | Implementação |
 |-----------|---------------|
@@ -20,7 +20,7 @@
 
 ---
 
-## 🚀 Instalação (WSL2)
+## 🚀 INSTALAÇÃO (WSL2)
 
 ```bash
 # 1. Clone o repositório
@@ -34,12 +34,22 @@ source .venv/bin/activate
 # 3. Instale as dependências
 pip install -e .
 
+CONFIGURAÇÃO:
+
+AWS (S3 REAL)
+
 # Configure suas credenciais AWS
 aws configure
 # Access Key ID: [sua chave]
 # Secret Access Key: [sua chave secreta]
 # Region: us-east-1
 # Output: json
+
+GCP E AZURE (MOCKS)
+NÃO PRECISA DE CONFIGURAÇÃO! OS PROVIDERS MOCK FUNCIONAM SEM CREDENCIAIS.
+
+USO:
+LISTAR RECURSOS:
 
 # AWS S3 - buckets reais
 nano-iaas list aws
@@ -52,6 +62,8 @@ nano-iaas list azure
 
 # Local filesystem
 nano-iaas list local
+
+LER DADOS:
 
 # AWS S3 → JSON (auto-detect)
 nano-iaas read s3://meu-bucket/dados/users.jsonl --limit 10
@@ -68,11 +80,15 @@ nano-iaas read tests/data/users.jsonl
 # Local → CSV
 nano-iaas read tests/data/metrics.csv --format csv
 
+GERENCIAR PERFIS:
+
 # Ver configuração atual
 nano-iaas config show
 
 # Ativar profile
 nano-iaas config activate dev
+
+ARQUITETURA:
 
 nano-iaas/
 ├── core/                    # Abstrações
@@ -95,12 +111,15 @@ nano-iaas/
 └── .github/workflows/       # CI/CD
     └── tests.yml            # GitHub Actions
 
+AUTENTICAÇÃO:
+
 | Cloud | Método        | Comando WSL2                            |
 | ----- | ------------- | --------------------------------------- |
 | AWS   | SSO / Profile | `aws sso login`                         |
 | GCP   | ADC           | `gcloud auth application-default login` |
 | Azure | CLI           | `az login`                              |
 
+TESTES:
 
 # Rodar todos os testes
 pytest tests/ -v
@@ -108,46 +127,64 @@ pytest tests/ -v
 # Com cobertura
 pytest tests/ --cov=core --cov=providers --cov=cli
 
+Status: ✅ 24/24 testes passando em Python 3.10, 3.11 e 3.12
+ 
+📋 PASSO A PASSO DO DESENVOLVIMENTO:
 
-📋 Passo a Passo do Desenvolvimento
 Etapa 1: Estrutura Base
+
 [x] Criar diretórios (core/, providers/, cli/, tests/)
 [x] Configurar ambiente virtual Python
 [x] Instalar dependências (Click, boto3, pandas, rich, etc.)
+
 Etapa 2: Core
+
 [x] CloudProvider (ABC) - interface base
 [x] DataReader - conversão entre formatos
 [x] ConfigManager - perfis multi-cloud via YAML
+
 Etapa 3: Provider Local
+
 [x] Leitura de arquivos JSONL, CSV
 [x] Listagem de diretórios
 [x] Metadados de arquivos
+
 Etapa 4: Provider AWS (S3 Real)
+
 [x] Autenticação com boto3
 [x] Listagem de buckets
 [x] Leitura de objetos S3
 [x] Testado com conta AWS real
+
 Etapa 5: Mocks GCP e Azure
+
 [x] GCSReaderMock - simula Google Cloud Storage
 [x] BlobReaderMock - simula Azure Blob Storage
 [x] Usa arquivos locais como dados mock
+
 Etapa 6: CLI
+
 [x] Comando read - leitura de dados
 [x] Comando list - listagem de recursos
 [x] Comando config - gerenciamento de perfis
 [x] Auto-detect de provider pelo prefixo (s3://, gs://, azure://)
 [x] Tabelas coloridas com Rich
+
 Etapa 7: Testes Automatizados
+
 [x] Testes para DataReader
 [x] Testes para LocalReader
 [x] Testes para ConfigManager
 [x] Testes para CLI
 [x] 24 testes, todos passando
+
 Etapa 8: CI/CD
+
 [x] GitHub Actions configurado
 [x] Testes em Python 3.10, 3.11, 3.12
 [x] Badge de status no README
 
+ROADMAP
 
 | Versão | Feature                    | Status    |
 | ------ | -------------------------- | --------- |
@@ -158,18 +195,22 @@ Etapa 8: CI/CD
 | v0.4.0 | API REST                   | 🔜 Futuro |
 
 
+CONTRIBUIÇÃO:
 
-🤝 Contribuição
 Contribuições são bem-vindas! Para contribuir:
 Fork o projeto
 Crie uma branch (git checkout -b feature/nova-feature)
 Commit suas mudanças (git commit -m 'feat: adiciona nova feature')
 Push para a branch (git push origin feature/nova-feature)
 Abra um Pull Request
-📄 Licença
+
+LICENÇA:
+
 Este projeto está licenciado sob a licença MIT - veja o arquivo LICENSE para detalhes.
-👨‍💻 Autor
-Liucera - GitHub
+
+👨‍💻 AUTOR:
+ Liucera - GitHub
+
 💡 Dica WSL2: Para usar o nano-iaas de qualquer lugar no terminal, adicione ao seu .bashrc:
 bash
 Copy
