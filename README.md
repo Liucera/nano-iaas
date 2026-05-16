@@ -186,6 +186,74 @@ Etapa 8: CI/CD
 [x] Testes em Python 3.10, 3.11, 3.12
 [x] Badge de status no README
 
+ETAPA 9: CORREÇÃO DO ERRO NO CI
+
+## 🔧 Correção do CI/CD — Passo a Passo
+
+### Problema
+O pipeline falhava com `numpy==2.4.5` incompatível com Python 3.10.
+
+### Causas encontradas
+1. `.venv` (Python 3.12) estava commitado no repositório
+2. Workflow usava `pip install` hardcoded, ignorando o `requirements.txt`
+3. Arquivos de dados de teste bloqueados pelo `.gitignore`
+
+---
+
+### Passo 1 — Remover o `.venv` do repositório
+```bash
+echo ".venv/" >> .gitignore
+git rm -r --cached .venv
+git add .gitignore
+git commit -m "ci: remove .venv do repositório"
+```
+
+### Passo 2 — Corrigir o `requirements.txt`
+```txt
+numpy>=1.24,<2.3
+```
+
+### Passo 3 — Corrigir o workflow
+```yaml
+- name: Install dependencies
+  run: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+```
+
+### Passo 4 — Incluir arquivos de teste
+```bash
+echo "!tests/**/*.csv"   >> .gitignore
+echo "!tests/**/*.jsonl" >> .gitignore
+git add -f tests/data/users.jsonl tests/data/metrics.csv
+git commit -m "ci: adiciona arquivos de dados de teste"
+```
+
+---
+
+### Resultado
+| Python | Status |
+|--------|--------|
+| 3.10   | ✅ 24/24 |
+| 3.11   | ✅ 24/24 |
+| 3.12   | ✅ 24/24 |
+
+
+## Pipeline de CI
+
+
+```mermaid
+flowchart TD
+    A[Push para main] --> B[GitHub Actions]
+    B --> C{Matrix}
+    C --> D[Python 3.10]
+    C --> E[Python 3.11]
+    C --> F[Python 3.12]
+    D & E & F --> G[pip install -r requirements.txt]
+    G --> H[pytest tests/ -v]
+    H --> I[✅ 24/24 testes passando]
+```
+
 ROADMAP
 
 | Versão | Feature                    | Status    |
