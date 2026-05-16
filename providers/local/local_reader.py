@@ -41,7 +41,6 @@ class LocalReader(CloudProvider):
         
         Args:
             resource_path: Caminho relativo ao base_path (ex: dados/users.jsonl)
-            format: formato de SAÍDA desejado. Para parsing do arquivo, usamos a extensão.
         """
         file_path = self.base_path / resource_path
         limit = options.get('limit', 1000)
@@ -54,7 +53,6 @@ class LocalReader(CloudProvider):
         with open(file_path, 'rb') as f:
             content = f.read()
         
-        # Para parsing do arquivo, inferir pelo extensão do arquivo (não pelo format de saída)
         parse_format = self.data_reader.infer_format(str(file_path))
         
         for record in self.data_reader.parse_raw(content, parse_format):

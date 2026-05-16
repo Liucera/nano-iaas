@@ -49,6 +49,12 @@ class S3Reader(CloudProvider):
             print(f"❌ Erro ao listar buckets: {e}")
     
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
+        """
+        Lê objetos S3.
+        
+        Args:
+            resource_path: s3://bucket/prefix/ ou s3://bucket/key
+        """
         path = resource_path.replace('s3://', '')
         parts = path.split('/', 1)
         bucket = parts[0]
@@ -76,6 +82,8 @@ class S3Reader(CloudProvider):
                     file_format = self.data_reader.infer_format(key)
                     
                     for record in self.data_reader.parse_raw(content, file_format):
+                        if count >= limit:
+                            return
                         record['_source'] = f"s3://{bucket}/{key}"
                         record['_last_modified'] = obj['LastModified'].isoformat()
                         record['_size'] = obj['Size']
