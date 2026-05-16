@@ -4,6 +4,13 @@ from typing import Optional
 
 from core.config import ConfigManager
 from providers.local.local_reader import LocalReader
+from providers.aws.s3_reader import S3Reader
+
+
+PROVIDERS = {
+    'local': LocalReader,
+    'aws': S3Reader,
+}
 
 
 @click.command()
@@ -16,15 +23,22 @@ def list_cmd(provider, profile, format):
     config = ConfigManager()
     profile_data = config.get_profile(profile)
     
-    if provider != 'local':
-        click.echo(f"❌ Provider '{provider}' ainda não implementado", err=True)
+    provider_class = PROVIDERS.get(provider.lower())
+    if not provider_class:
+        click.echo(f"❌ Provider '{provider}' não suportado", err=True)
         return
     
-    base_path = profile_data.get('local', {}).get('base_path', '.')
-    reader = LocalReader(base_path=base_path)
+    # Instanciar
+    if provider == 'local':
+        base_path = profile_data.get('local', {}).get('base_path', '.')
+        reader = LocalReader(base_path=base_path)
+    else:
+        reader = provider_class()
     
     auth_config = profile_data.get(provider, {})
-    reader.authenticate(auth_config)
+    if not reader.authenticate(auth_config):
+        click.echo(f"❌ Falha na autenticação {provider}", err=True)
+        return
     
     resources = list(reader.list_resources())
     
@@ -42,7 +56,7 @@ def list_cmd(provider, profile, format):
             click.echo(output.getvalue())
     else:
         # Table simples
-        click.echo(f"{'NAME':<30} {'SIZE':>10} {'TYPE':<10}")
-        click.echo("-" * 52)
+        click.echo(f"{'NAME':<40} {'TYPE':<10}")
+        click.echo("-" * 50)
         for r in resources:
-            click.echo(f"{r['name']:<30} {r['size']:>10} {r['type']:<10}")
+            click.echo(f"{r['name']:<40} {r.get('type', 'unknown'):<10}")

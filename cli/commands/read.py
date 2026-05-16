@@ -6,11 +6,19 @@ from typing import Optional
 from core.config import ConfigManager
 from core.data_reader import DataReader
 from providers.local.local_reader import LocalReader
+from providers.aws.s3_reader import S3Reader
+
+
+PROVIDERS = {
+    'local': LocalReader,
+    'aws': S3Reader,
+    's3': S3Reader,
+}
 
 
 @click.command()
 @click.argument('resource_path')
-@click.option('--provider', '-p', default='local', help='Provedor (local, aws, gcp, azure)')
+@click.option('--provider', '-p', help='Provedor (local, aws, gcp, azure)')
 @click.option('--format', '-f', default='auto', 
               type=click.Choice(['json', 'csv', 'parquet', 'raw', 'auto']))
 @click.option('--limit', '-l', default=100, help='Limite de registros')
@@ -22,28 +30,38 @@ def read_cmd(resource_path, provider, format, limit, profile, output):
     
     Exemplos:
         nano-iaas read tests/data/users.jsonl
-        nano-iaas read tests/data/metrics.csv --format json
-        nano-iaas read tests/data/users.jsonl --format csv
+        nano-iaas read s3://meu-bucket/dados/ --provider aws
     """
     config = ConfigManager()
     profile_data = config.get_profile(profile)
     
-    # Instanciar provider local (por enquanto só temos ele)
+    # Detectar provider pelo prefixo se não especificado
+    if not provider:
+        if resource_path.startswith('s3://'):
+            provider = 'aws'
+        else:
+            provider = 'local'
+    
+    provider_class = PROVIDERS.get(provider.lower())
+    if not provider_class:
+        click.echo(f"❌ Provider '{provider}' não suportado", err=True)
+        sys.exit(1)
+    
+    # Instanciar provider
     if provider == 'local':
         base_path = profile_data.get('local', {}).get('base_path', '.')
         reader = LocalReader(base_path=base_path)
     else:
-        click.echo(f"❌ Provider '{provider}' ainda não implementado", err=True)
-        sys.exit(1)
+        reader = provider_class()
     
     # Autenticar
     auth_config = profile_data.get(provider, {})
     if not reader.authenticate(auth_config):
         sys.exit(1)
     
-    click.echo(f"🔍 Lendo {resource_path}...", err=True)
+    click.echo(f"🔍 Lendo {resource_path} [{provider}]...", err=True)
     
-    # Ler dados - converter para lista para poder reutilizar
+    # Ler dados
     records = list(reader.read(resource_path, format=format, limit=limit))
     
     if not records:
