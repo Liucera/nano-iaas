@@ -1,0 +1,3 @@
+{"id": 1, "name": "Alice", "cloud": "aws", "region": "us-east-1"}
+{"id": 2, "name": "Bob", "cloud": "gcp", "region": "us-central1"}
+{"id": 3, "name": "Carol", "cloud": "azure", "region": "westeurope"}

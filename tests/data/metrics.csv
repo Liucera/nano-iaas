@@ -1,0 +1,4 @@
+timestamp,cpu_usage,memory_usage,cloud_provider
+2026-05-16T10:00:00Z,45.2,78.1,aws
+2026-05-16T10:05:00Z,52.1,81.3,gcp
+2026-05-16T10:10:00Z,38.7,65.4,azure
