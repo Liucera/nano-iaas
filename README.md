@@ -1,3 +1,5 @@
+![Arquitetura Nano-IaaS](./docs/nanoiaasimage.png)
+
 # ☁️ Nano-IaaS
 
 [![Tests](https://github.com/Liucera/nano-iaas/actions/workflows/tests.yml/badge.svg)](https://github.com/Liucera/nano-iaas/actions/workflows/tests.yml)
