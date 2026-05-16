@@ -39,6 +39,6 @@ class TestCLI:
     def test_read_local_limit(self, runner):
         result = runner.invoke(cli, ['read', 'tests/data/users.jsonl', '--limit', '1'])
         assert result.exit_code == 0
-        # Deve ter apenas 1 registro (1 linha de JSON)
-        lines = [l for l in result.output.split('\n') if l.strip()]
-        assert len(lines) == 1  # Apenas Alice
+        # Filtrar apenas linhas JSON (ignorar logs)
+        lines = [l for l in result.output.split('\n') if l.strip() and l.strip().startswith('{')]
+        assert len(lines) == 1  # Apenas Alice (1 registro JSON)
