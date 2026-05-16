@@ -5,11 +5,22 @@ from typing import Optional
 from core.config import ConfigManager
 from providers.local.local_reader import LocalReader
 from providers.aws.s3_reader import S3Reader
+from providers.gcp.gcs_reader_mock import GCSReaderMock
+from providers.azure.blob_reader_mock import BlobReaderMock
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    RICH_AVAILABLE = True
+except ImportError:
+    RICH_AVAILABLE = False
 
 
 PROVIDERS = {
     'local': LocalReader,
     'aws': S3Reader,
+    'gcp': GCSReaderMock,
+    'azure': BlobReaderMock,
 }
 
 
@@ -55,8 +66,21 @@ def list_cmd(provider, profile, format):
                 writer.writerow(r)
             click.echo(output.getvalue())
     else:
-        # Table simples
-        click.echo(f"{'NAME':<40} {'TYPE':<10}")
-        click.echo("-" * 50)
-        for r in resources:
-            click.echo(f"{r['name']:<40} {r.get('type', 'unknown'):<10}")
+        # Table com Rich se disponível
+        if RICH_AVAILABLE and resources:
+            console = Console()
+            table = Table(title=f"☁️  Recursos {provider.upper()}", show_header=True, header_style="bold magenta")
+            
+            for key in resources[0].keys():
+                table.add_column(key.capitalize())
+            
+            for r in resources:
+                table.add_row(*[str(v) for v in r.values()])
+            
+            console.print(table)
+        else:
+            # Fallback simples
+            click.echo(f"{'NAME':<40} {'TYPE':<10}")
+            click.echo("-" * 50)
+            for r in resources:
+                click.echo(f"{r['name']:<40} {r.get('type', 'unknown'):<10}")

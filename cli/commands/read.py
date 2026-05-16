@@ -7,12 +7,19 @@ from core.config import ConfigManager
 from core.data_reader import DataReader
 from providers.local.local_reader import LocalReader
 from providers.aws.s3_reader import S3Reader
+from providers.gcp.gcs_reader_mock import GCSReaderMock
+from providers.azure.blob_reader_mock import BlobReaderMock
 
 
 PROVIDERS = {
     'local': LocalReader,
     'aws': S3Reader,
     's3': S3Reader,
+    'gcp': GCSReaderMock,
+    'gcs': GCSReaderMock,
+    'google': GCSReaderMock,
+    'azure': BlobReaderMock,
+    'blob': BlobReaderMock,
 }
 
 
@@ -31,6 +38,8 @@ def read_cmd(resource_path, provider, format, limit, profile, output):
     Exemplos:
         nano-iaas read tests/data/users.jsonl
         nano-iaas read s3://meu-bucket/dados/ --provider aws
+        nano-iaas read gs://nano-iaas-dev/dados/ --provider gcp
+        nano-iaas read azure://nano-iaas-data/dados/ --provider azure
     """
     config = ConfigManager()
     profile_data = config.get_profile(profile)
@@ -39,6 +48,10 @@ def read_cmd(resource_path, provider, format, limit, profile, output):
     if not provider:
         if resource_path.startswith('s3://'):
             provider = 'aws'
+        elif resource_path.startswith('gs://'):
+            provider = 'gcp'
+        elif resource_path.startswith('azure://'):
+            provider = 'azure'
         else:
             provider = 'local'
     
