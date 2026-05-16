@@ -220,7 +220,7 @@ alias nano-iaas="~/nano-iaas/.venv/bin/nano-iaas"
 
 ## 🏗️ Arquitetura do Projeto
 
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasimage.png)
+![Arquitetura Nano-IaaS](./docs/nanoiaasimage.png)
 
 ### Camadas da Arquitetura
 
@@ -243,7 +243,7 @@ alias nano-iaas="~/nano-iaas/.venv/bin/nano-iaas"
 
 ## 🏗️ Arquitetura do Projeto
 
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasimage.png)
+![Arquitetura Nano-IaaS](./docs/nanoiaasimage.png)
 
 ### Camadas da Arquitetura
 
@@ -266,7 +266,7 @@ alias nano-iaas="~/nano-iaas/.venv/bin/nano-iaas"
 
 ## 🏗️ Arquitetura do Projeto
 
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasimage.png)
+![Arquitetura Nano-IaaS](./docs/nanoiaasimage.png)
 
 ### Camadas da Arquitetura
 
