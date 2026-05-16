@@ -24,12 +24,13 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov
+        pip install click boto3 google-cloud-storage azure-storage-blob azure-identity pandas pyarrow rich pyyaml pydantic pytest pytest-cov
     
     - name: Run tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}
       run: |
-        pytest tests/ -v --cov=core --cov=providers --cov=cli
+        pytest tests/ -v
     
     - name: Upload coverage report
       uses: codecov/codecov-action@v3
