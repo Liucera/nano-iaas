@@ -1,4 +1,4 @@
-![Arquitetura Nano-IaaS](https://github.com/Liucera/nano-iaas/blob/maihttps://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasimage.png)
+![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasimage.png)
 
 # ☁️ Nano-IaaS
 
