@@ -1,0 +1,48 @@
+import click
+import json
+from typing import Optional
+
+from core.config import ConfigManager
+from providers.local.local_reader import LocalReader
+
+
+@click.command()
+@click.argument('provider', default='local')
+@click.option('--profile', help='Profile de configuração')
+@click.option('--format', '-f', default='table', 
+              type=click.Choice(['table', 'json', 'csv']))
+def list_cmd(provider, profile, format):
+    """Lista recursos disponíveis."""
+    config = ConfigManager()
+    profile_data = config.get_profile(profile)
+    
+    if provider != 'local':
+        click.echo(f"❌ Provider '{provider}' ainda não implementado", err=True)
+        return
+    
+    base_path = profile_data.get('local', {}).get('base_path', '.')
+    reader = LocalReader(base_path=base_path)
+    
+    auth_config = profile_data.get(provider, {})
+    reader.authenticate(auth_config)
+    
+    resources = list(reader.list_resources())
+    
+    if format == 'json':
+        click.echo(json.dumps(resources, indent=2, ensure_ascii=False, default=str))
+    elif format == 'csv':
+        if resources:
+            import csv
+            import io
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=resources[0].keys())
+            writer.writeheader()
+            for r in resources:
+                writer.writerow(r)
+            click.echo(output.getvalue())
+    else:
+        # Table simples
+        click.echo(f"{'NAME':<30} {'SIZE':>10} {'TYPE':<10}")
+        click.echo("-" * 52)
+        for r in resources:
+            click.echo(f"{r['name']:<30} {r['size']:>10} {r['type']:<10}")
