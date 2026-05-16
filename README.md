@@ -288,65 +288,7 @@ alias nano-iaas="~/nano-iaas/.venv/bin/nano-iaas"
 
 ---
 
-## 🏗️ Arquitetura do Projeto
 
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasmage.png)
-
-### Camadas da Arquitetura
-
-| Camada | Componente | Descrição |
-|--------|-----------|-----------|
-| 1 | **CLI (Click + Rich)** | Interface do usuário via terminal |
-| 2 | **Core** | Abstrações (ABC), motor de conversão e config |
-| 3 | **Providers** | Implementações (Local, AWS, GCP Mock, Azure Mock) |
-| 4 | **Dados** | Fontes de dados (local, S3 real) |
-| 5 | **CI/CD** | GitHub Actions com testes automatizados |
-
-### Design Patterns Utilizados
-
-- **Abstract Base Class (ABC):** Interface `CloudProvider` que todos os providers implementam
-- **Factory Pattern:** Dicionário `PROVIDERS` que mapeia strings para classes
-- **Generator Pattern:** Métodos `read()` retornam `Iterator` para streaming de dados
-- **Unix Philosophy:** Output em stdout permite pipes com `jq`, `grep`, `awk`
-
----
-
-## 🏗️ Arquitetura do Projeto
-
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasmage.png)
-
-### Camadas da Arquitetura
-
-| Camada | Componente | Descrição |
-|--------|-----------|-----------|
-| 1 | **CLI (Click + Rich)** | Interface do usuário via terminal |
-| 2 | **Core** | Abstrações (ABC), motor de conversão e config |
-| 3 | **Providers** | Implementações (Local, AWS, GCP Mock, Azure Mock) |
-| 4 | **Dados** | Fontes de dados (local, S3 real) |
-| 5 | **CI/CD** | GitHub Actions com testes automatizados |
-
-### Design Patterns Utilizados
-
-- **Abstract Base Class (ABC):** Interface `CloudProvider` que todos os providers implementam
-- **Factory Pattern:** Dicionário `PROVIDERS` que mapeia strings para classes
-- **Generator Pattern:** Métodos `read()` retornam `Iterator` para streaming de dados
-- **Unix Philosophy:** Output em stdout permite pipes com `jq`, `grep`, `awk`
-
----
-
-## 🏗️ Arquitetura do Projeto
-
-![Arquitetura Nano-IaaS](https://raw.githubusercontent.com/Liucera/nano-iaas/main/docs/nanoiaasmage.png)
-
-### Camadas da Arquitetura
-
-| Camada | Componente | Descrição |
-|--------|-----------|-----------|
-| 1 | **CLI (Click + Rich)** | Interface do usuário via terminal |
-| 2 | **Core** | Abstrações (ABC), motor de conversão e config |
-| 3 | **Providers** | Implementações (Local, AWS, GCP Mock, Azure Mock) |
-| 4 | **Dados** | Fontes de dados (local, S3 real) |
-| 5 | **CI/CD** | GitHub Actions com testes automatizados |
 
 ### Design Patterns Utilizados
 
