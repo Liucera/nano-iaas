@@ -139,3 +139,27 @@ def read_resource(provider: str, bucket: str, usuario: str = Depends(usuario_atu
         return {"provider": provider, "bucket": bucket, "records": records}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/audit")
+def ver_logs(usuario: str = Depends(usuario_atual)):
+    try:
+        with open(LOG_FILE, "r") as f:
+            linhas = f.readlines()
+        logs = []
+        for linha in reversed(linhas):
+            linha = linha.strip()
+            if not linha:
+                continue
+            partes = linha.split(" | ")
+            if len(partes) == 6:
+                logs.append({
+                    "timestamp": partes[0],
+                    "usuario": partes[1],
+                    "acao": partes[2],
+                    "provider": partes[3],
+                    "recurso": partes[4],
+                    "detalhes": partes[5]
+                })
+        return {"logs": logs[:50]}
+    except Exception as e:
+        return {"logs": [], "error": str(e)}
