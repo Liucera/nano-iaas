@@ -462,18 +462,76 @@
       providers.forEach(({ provider, resources }) => {
         resources.forEach(r => {
           const tr = document.createElement('tr');
+          tr.style.cursor = 'pointer';
+          tr.title = 'Clique para ver os dados';
+          tr.onclick = () => lerDados(provider, r.name);
           tr.innerHTML = `
             <td><div class="provider-cell">
               <span>${icones[provider]}</span>
               <span class="provider-name">${provider.toUpperCase()}</span>
             </div></td>
-            <td class="resource-name">${r.name}</td>
+            <td class="resource-name">${r.name} <span style="font-size:11px;color:#475569">▶ ver dados</span></td>
             <td><span class="type-badge type-${r.type}">${r.type}</span></td>
             <td class="date-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
             <td class="date-cell">${formatDate(r.created) || '—'}</td>
           `;
           corpo.appendChild(tr);
         });
+      });
+    }
+
+    async function lerDados(provider, bucket) {
+      setStatus(`Lendo dados de ${bucket}...`, 'loading');
+      try {
+        const res = await fetch(`${API}/read/${provider}/${bucket}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.records || data.records.length === 0) {
+          setStatus(`⚠️ Nenhum dado encontrado em ${bucket}`, 'error');
+          return;
+        }
+        mostrarDados(provider, bucket, data.records);
+        setStatus(`✅ ${data.records.length} registros carregados de ${bucket}`, 'success');
+      } catch (e) {
+        setStatus(`❌ Erro: ${e.message}`, 'error');
+      }
+    }
+
+    function mostrarDados(provider, bucket, records) {
+      const corpo = document.getElementById('corpo');
+      corpo.innerHTML = '';
+      const icones = { gcp: '🔵', azure: '🔷', aws: '🟠' };
+      const colunas = Object.keys(records[0]).filter(k => !k.startsWith('_'));
+
+      const headerTr = document.createElement('tr');
+      headerTr.style.background = '#0a0c10';
+      headerTr.innerHTML = `
+        <td colspan="${colunas.length + 1}" style="padding:10px 20px">
+          <span style="color:#64748b;font-size:12px">
+            ${icones[provider]} ${provider.toUpperCase()} › ${bucket}
+          </span>
+          <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">
+            ← voltar
+          </button>
+        </td>
+      `;
+      corpo.appendChild(headerTr);
+
+      const thTr = document.createElement('tr');
+      thTr.style.background = '#111520';
+      thTr.innerHTML = colunas.map(c =>
+        `<th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">${c}</th>`
+      ).join('');
+      corpo.appendChild(thTr);
+
+      records.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = colunas.map(c =>
+          `<td style="padding:12px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${r[c] ?? '—'}</td>`
+        ).join('');
+        corpo.appendChild(tr);
       });
     }
   </script>

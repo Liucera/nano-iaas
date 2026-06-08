@@ -97,3 +97,26 @@ def list_resources(provider: str, usuario: str = Depends(usuario_atual)):
         return {"provider": provider, "resources": resources}
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/read/{provider}/{bucket}")
+def read_resource(provider: str, bucket: str, usuario: str = Depends(usuario_atual)):
+    try:
+        if provider == "gcp":
+            p = GCSReaderMock()
+        elif provider == "azure":
+            p = BlobReaderMock()
+        elif provider == "aws":
+            p = S3ReaderMock()
+        else:
+            return {"error": "Provider não encontrado"}
+
+        p.authenticate({})
+
+        prefix = f"gs://{bucket}/dados/" if provider == "gcp" else \
+                 f"azure://{bucket}/dados/" if provider == "azure" else \
+                 f"s3://{bucket}/dados/"
+
+        records = list(p.read(prefix))
+        return {"provider": provider, "bucket": bucket, "records": records}
+    except Exception as e:
+        return {"error": str(e)}

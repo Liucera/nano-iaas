@@ -1,4 +1,5 @@
 from typing import Iterator, Dict, Any
+from pathlib import Path
 from core.provider import CloudProvider
 from core.data_reader import DataReader
 
@@ -17,12 +18,10 @@ class S3ReaderMock(CloudProvider):
         ]
 
     def authenticate(self, profile: Dict[str, Any]) -> bool:
-        """Simula autenticação AWS."""
         print("✅ AWS (MOCK) autenticado com sucesso!")
         return True
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
-        """Lista buckets mock."""
         for bucket in self.mock_buckets:
             yield {
                 'name': bucket['name'],
@@ -32,12 +31,31 @@ class S3ReaderMock(CloudProvider):
             }
 
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
-        """Lê dados mock do S3."""
-        print(f"📖 Lendo {resource_path} (MOCK)")
-        return iter([])
+        path = resource_path.replace('s3://', '')
+        parts = path.split('/', 1)
+        bucket = parts[0]
+        prefix = parts[1] if len(parts) > 1 else ''
+
+        mock_files = [
+            {'name': 'dados/users.jsonl', 'local_name': 'users.jsonl', 'bucket': 'nano-iaas-raw'},
+            {'name': 'dados/metrics.csv', 'local_name': 'metrics.csv', 'bucket': 'nano-iaas-raw'},
+        ]
+
+        files = [f for f in mock_files if f['bucket'] == bucket and f['name'].startswith(prefix)]
+
+        for file_info in files:
+            local_file = Path("tests/data") / file_info['local_name']
+            if not local_file.exists():
+                continue
+            with open(local_file, 'rb') as f:
+                content = f.read()
+            file_format = self.data_reader.infer_format(str(local_file))
+            for record in self.data_reader.parse_raw(content, file_format):
+                record['_source'] = f"s3://{bucket}/{file_info['name']}"
+                record['_bucket'] = bucket
+                yield record
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
-        """Retorna metadados mock."""
         return {
             'bucket': 'nano-iaas-raw',
             'key': resource_path.replace('s3://', ''),
