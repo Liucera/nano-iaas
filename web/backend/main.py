@@ -20,6 +20,23 @@ SECRET_KEY = "nano-iaas-chave-secreta-2026"
 ALGORITHM = "HS256"
 TOKEN_EXPIRA_EM = 60  # minutos
 
+# ── Logs de auditoria ───────────────────────────────────────
+import logging
+from datetime import datetime
+
+LOG_FILE = "audit.log"
+
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(message)s"
+)
+
+def registrar_acesso(usuario: str, acao: str, provider: str, recurso: str, detalhes: str = ""):
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    linha = f"{timestamp} | {usuario} | {acao} | {provider} | {recurso} | {detalhes}"
+    logging.info(linha)
+
 # ── Usuários permitidos (em produção ficaria no banco de dados) ──
 USUARIOS = {
     "admin": {
@@ -94,6 +111,7 @@ def list_resources(provider: str, usuario: str = Depends(usuario_atual)):
             return {"error": "Provider não encontrado"}
 
         resources = list(p.list_resources())
+        registrar_acesso(usuario, "LIST", provider, "-", f"{len(resources)} recursos")
         return {"provider": provider, "resources": resources}
     except Exception as e:
         return {"error": str(e)}
@@ -117,6 +135,7 @@ def read_resource(provider: str, bucket: str, usuario: str = Depends(usuario_atu
                  f"s3://{bucket}/dados/"
 
         records = list(p.read(prefix))
+        registrar_acesso(usuario, "READ", provider, bucket, f"{len(records)} registros")
         return {"provider": provider, "bucket": bucket, "records": records}
     except Exception as e:
         return {"error": str(e)}
