@@ -409,7 +409,8 @@
     function atualizarContadores() {
       document.getElementById('cnt-gcp').textContent = counts.gcp || '—';
       document.getElementById('cnt-azure').textContent = counts.azure || '—';
-      const total = counts.gcp + counts.azure;
+      document.getElementById('cnt-aws').textContent = counts.aws || '—';
+      const total = counts.gcp + counts.azure + counts.aws;
       document.getElementById('cnt-total').textContent = total || '—';
     }
 
