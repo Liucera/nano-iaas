@@ -87,7 +87,7 @@ Acesse: http://localhost:3000
 
 Credenciais padrao:
 - Usuario: admin
-- Senha: Nano@2026
+- Senha: definida pelo administrador
 
 ---
 
