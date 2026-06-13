@@ -1,0 +1,16 @@
+<svg width="680" height="460" viewBox="0 0 680 460" xmlns="http://www.w3.org/2000/svg">
+<rect width="680" height="460" fill="#050d1a"/>
+<path d="M200 20 L178 20 L178 410 L200 410" fill="none" stroke="#3b82f6" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M480 20 L502 20 L502 410 L480 410" fill="none" stroke="#3b82f6" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M280,138 C280,114 298,96 320,96 C326,84 338,76 352,76 C370,76 386,90 388,108 C400,110 410,122 410,136 C410,154 396,168 380,168 L302,168 C290,168 280,154 280,138 Z" fill="#000d1a" stroke="#4285f4" stroke-width="2.5"/>
+<path d="M210,188 C210,164 228,146 250,146 C256,134 268,126 282,126 C300,126 316,140 318,158 C330,160 340,172 340,186 C340,204 326,218 310,218 L232,218 C220,218 210,204 210,188 Z" fill="#1a0800" stroke="#ff9900" stroke-width="2.5"/>
+<path d="M340,188 C340,164 358,146 380,146 C386,134 398,126 412,126 C430,126 446,140 448,158 C460,160 470,172 470,186 C470,204 456,218 440,218 L362,218 C350,218 340,204 340,188 Z" fill="#001428" stroke="#00adef" stroke-width="2.5"/>
+<text x="340" y="290" text-anchor="middle" font-family="sans-serif" font-size="46" font-weight="700"><tspan fill="#f1f5f9">Nano</tspan><tspan fill="#3b82f6">-IaaS</tspan></text>
+<text x="340" y="324" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#475569" letter-spacing="4">MULTI-CLOUD EXPLORER</text>
+<line x1="275" y1="348" x2="325" y2="348" stroke="#ff9900" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="325" y1="348" x2="358" y2="348" stroke="#4285f4" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="358" y1="348" x2="408" y2="348" stroke="#00adef" stroke-width="2.5" stroke-linecap="round"/>
+<text x="300" y="368" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#ff9900">AWS</text>
+<text x="341" y="368" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#4285f4">GCP</text>
+<text x="383" y="368" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#00adef">AZURE</text>
+</svg>
