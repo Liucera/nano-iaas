@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.svg" alt="Nano-IaaS" width="400"/>
+  <img src="https://liucera.github.io/nano-iaas/logo.svg" alt="Nano-IaaS" width="400"/>
   
   # Nano-IaaS
   
