@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="nanoiaasmage.png" alt="Nano-IaaS" width="120"/>
+  <img src="logo.svg" alt="Nano-IaaS" width="400"/>
   
   # Nano-IaaS
   
