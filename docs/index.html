@@ -493,25 +493,28 @@
 
 
 
-function mostrarLogs(logs) {
+function mostrarLogs(logs, limite) {
   const corpo = document.getElementById('corpo');
   corpo.innerHTML = '';
-
   const headerTr = document.createElement('tr');
   headerTr.style.background = '#0a0c10';
   headerTr.innerHTML = `
-    <td colspan="6" style="padding:10px 20px">
+    <td colspan="7" style="padding:10px 20px">
       <span style="color:#4ade80;font-size:12px">📋 Logs de auditoria</span>
-      <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">
-        ← voltar
-      </button>
+      <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">← voltar</button>
+      <span style="margin-left:20px;font-size:12px;color:#64748b">Exibir:</span>
+      <button onclick="verLogs(10)" style="margin-left:6px;background:${limite===10?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">10</button>
+      <button onclick="verLogs(20)" style="margin-left:4px;background:${limite===20?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">20</button>
+      <button onclick="verLogs(50)" style="margin-left:4px;background:${limite===50?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">50</button>
+      <button onclick="downloadLogs()" style="margin-left:16px;background:#1a1535;border:1px solid #2d2050;color:#c4b5fd;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">⬇ Baixar CSV</button>
+      <button onclick="downloadSelecionados()" style="margin-left:4px;background:#1a1535;border:1px solid #2d2050;color:#c4b5fd;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">⬇ Baixar Selecionados</button>
     </td>
   `;
   corpo.appendChild(headerTr);
-
   const thTr = document.createElement('tr');
   thTr.style.background = '#111520';
   thTr.innerHTML = `
+    <th style="padding:10px 20px;font-size:11px;color:#374151"><input type="checkbox" id="select-all" onclick="toggleTodos(this)"></th>
     <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Timestamp</th>
     <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Usuário</th>
     <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Ação</th>
@@ -520,22 +523,48 @@ function mostrarLogs(logs) {
     <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Detalhes</th>
   `;
   corpo.appendChild(thTr);
-
-  logs.forEach(log => {
+  const exibir = logs.slice(0, limite || 10);
+  exibir.forEach((log, i) => {
     const tr = document.createElement('tr');
     const cor = log.acao === 'READ' ? '#a5b4fc' : '#4ade80';
     tr.innerHTML = `
+      <td style="padding:11px 20px;border-bottom:1px solid #111520"><input type="checkbox" class="log-check" data-index="${i}"></td>
       <td style="padding:11px 20px;font-size:12px;font-family:monospace;color:#475569;border-bottom:1px solid #111520">${log.timestamp}</td>
       <td style="padding:11px 20px;font-size:13px;color:#e2e8f0;border-bottom:1px solid #111520">${log.usuario}</td>
-      <td style="padding:11px 20px;border-bottom:1px solid #111520">
-        <span style="background:#1e2433;color:${cor};font-size:11px;padding:2px 8px;border-radius:4px">${log.acao}</span>
-      </td>
+      <td style="padding:11px 20px;border-bottom:1px solid #111520"><span style="background:#1e2433;color:${cor};font-size:11px;padding:2px 8px;border-radius:4px">${log.acao}</span></td>
       <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.provider}</td>
       <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.recurso}</td>
       <td style="padding:11px 20px;font-size:13px;color:#64748b;border-bottom:1px solid #111520">${log.detalhes}</td>
     `;
     corpo.appendChild(tr);
   });
+  window._logsAtuais = logs;
+}
+function toggleTodos(checkbox) {
+  document.querySelectorAll('.log-check').forEach(c => c.checked = checkbox.checked);
+}
+function downloadLogs() {
+  if (!window._logsAtuais) return;
+  gerarCSV(window._logsAtuais);
+}
+function downloadSelecionados() {
+  const selecionados = [];
+  document.querySelectorAll('.log-check:checked').forEach(c => {
+    selecionados.push(window._logsAtuais[parseInt(c.dataset.index)]);
+  });
+  if (selecionados.length === 0) { setStatus('⚠️ Nenhum log selecionado!', 'error'); return; }
+  gerarCSV(selecionados);
+}
+function gerarCSV(logs) {
+  const header = 'Timestamp,Usuario,Acao,Provider,Recurso,Detalhes\n';
+  const linhas = logs.map(l => `${l.timestamp},${l.usuario},${l.acao},${l.provider},${l.recurso},${l.detalhes}`).join('\n');
+  const blob = new Blob([header + linhas], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
     async function lerDados(provider, bucket) {
       setStatus(`Lendo dados de ${bucket}...`, 'loading');
