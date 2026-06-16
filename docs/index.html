@@ -465,7 +465,11 @@
     function renderizar(providers) {
       const corpo = document.getElementById('corpo');
       corpo.innerHTML = '';
-      const icones = { gcp: '🔵', azure: '🔷', aws: '🟠' };
+      const icones = { 
+  gcp: '<img src="gcp.png" width="18" style="vertical-align:middle">',
+  azure: '<img src="azure.png" width="18" style="vertical-align:middle">',
+  aws: '<img src="aws.png" width="18" style="vertical-align:middle">'
+};
       providers.forEach(({ provider, resources }) => {
         resources.forEach(r => {
           const tr = document.createElement('tr');
