@@ -490,78 +490,8 @@
         });
       });
     }
-   async function verLogs() {
-  setStatus('Carregando logs de auditoria...', 'loading');
-  try {
-    const res = await fetch(`${API}/audit`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    mostrarLogs(data.logs);
-    setStatus(`✅ ${data.logs.length} registros de auditoria`, 'success');
-  } catch (e) {
-    setStatus(`❌ Erro: ${e.message}`, 'error');
-  }
-}
 
-function mostrarLogs(logs) {
-  const corpo = document.getElementById('corpo');
-  corpo.innerHTML = '';
 
-  const headerTr = document.createElement('tr');
-  headerTr.style.background = '#0a0c10';
-  headerTr.innerHTML = `
-    <td colspan="6" style="padding:10px 20px">
-      <span style="color:#4ade80;font-size:12px">📋 Logs de auditoria</span>
-      <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">
-        ← voltar
-      </button>
-    </td>
-  `;
-  corpo.appendChild(headerTr);
-
-  const thTr = document.createElement('tr');
-  thTr.style.background = '#111520';
-  thTr.innerHTML = `
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Timestamp</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Usuário</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Ação</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Provider</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Recurso</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Detalhes</th>
-  `;
-  corpo.appendChild(thTr);
-
-  logs.forEach(log => {
-    const tr = document.createElement('tr');
-    const cor = log.acao === 'READ' ? '#a5b4fc' : '#4ade80';
-    tr.innerHTML = `
-      <td style="padding:11px 20px;font-size:12px;font-family:monospace;color:#475569;border-bottom:1px solid #111520">${log.timestamp}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#e2e8f0;border-bottom:1px solid #111520">${log.usuario}</td>
-      <td style="padding:11px 20px;border-bottom:1px solid #111520">
-        <span style="background:#1e2433;color:${cor};font-size:11px;padding:2px 8px;border-radius:4px">${log.acao}</span>
-      </td>
-      <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.provider}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.recurso}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#64748b;border-bottom:1px solid #111520">${log.detalhes}</td>
-    `;
-    corpo.appendChild(tr);
-  });
-}async function verLogs() {
-  setStatus('Carregando logs de auditoria...', 'loading');
-  try {
-    const res = await fetch(`${API}/audit`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    mostrarLogs(data.logs);
-    setStatus(`✅ ${data.logs.length} registros de auditoria`, 'success');
-  } catch (e) {
-    setStatus(`❌ Erro: ${e.message}`, 'error');
-  }
-}
 
 function mostrarLogs(logs) {
   const corpo = document.getElementById('corpo');
