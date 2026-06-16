@@ -591,7 +591,23 @@ function mostrarLogs(logs) {
         corpo.appendChild(tr);
       });
     }
-  </script>
+  
+async function verLogs(limite) {
+  limite = limite || 10;
+  setStatus('Carregando logs de auditoria...', 'loading');
+  try {
+    const res = await fetch(`${API}/audit`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    mostrarLogs(data.logs, limite);
+    setStatus(`✅ ${Math.min(limite, data.logs.length)} registros de auditoria`, 'success');
+  } catch (e) {
+    setStatus(`❌ Erro: ${e.message}`, 'error');
+  }
+}
+</script>
 
 </body>
 </html>
