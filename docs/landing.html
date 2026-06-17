@@ -6,43 +6,52 @@
   <title>Nano-IaaS — Multi-Cloud Explorer</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #050d1a; color: #e2e8f0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #050d1a; color: #e2e8f0; }
 
     /* HERO */
     .hero {
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 40px 20px;
-      background-image: url('logo.svg');
+      background-image: url("logo.svg");
       background-size: cover; background-position: center;
       position: relative;
     }
-    .hero::before {
-      content: ''; position: absolute; inset: 0;
-      background: rgba(5, 13, 26, 0.75);
-    }
+    .hero::before { content: ""; position: absolute; inset: 0; background: rgba(5,13,26,0.78); }
     .hero-content { position: relative; z-index: 1; }
     .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -2px; margin-bottom: 16px; }
     .hero h1 span { color: #3b82f6; }
     .hero p { font-size: 20px; color: #94a3b8; max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
     .hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-    .btn-primary {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+
+    .btn-dashboard {
+      background: #3b82f6;
       color: #fff; padding: 14px 32px; border-radius: 10px;
       font-size: 16px; font-weight: 600; text-decoration: none;
-      transition: opacity 0.2s;
+      transition: background 0.2s;
     }
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-secondary {
-      background: transparent; color: #94a3b8;
+    .btn-dashboard:hover { background: #2563eb; }
+
+    .btn-github {
+      background: #374151; color: #d1d5db;
       padding: 14px 32px; border-radius: 10px;
       font-size: 16px; font-weight: 500; text-decoration: none;
-      border: 1px solid #1e2433; transition: border-color 0.2s;
+      border: 1px solid #4b5563; transition: background 0.2s;
+      display: flex; align-items: center; gap: 8px;
     }
-    .btn-secondary:hover { border-color: #3b82f6; color: #e2e8f0; }
+    .btn-github:hover { background: #4b5563; }
+    .btn-github svg { width: 20px; height: 20px; fill: #d1d5db; }
 
-    /* CLOUDS BADGES */
-    .clouds { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; }
+    .btn-voltar {
+      position: fixed; top: 20px; left: 20px; z-index: 100;
+      background: #0d1117; border: 1px solid #1e2433;
+      color: #94a3b8; padding: 8px 18px; border-radius: 8px;
+      font-size: 13px; text-decoration: none;
+      transition: border-color 0.2s;
+    }
+    .btn-voltar:hover { border-color: #3b82f6; color: #e2e8f0; }
+
+    .clouds { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
     .cloud-badge {
       display: flex; align-items: center; gap: 8px;
       background: #0d1117; border: 1px solid #1e2433;
@@ -50,9 +59,7 @@
     }
     .cloud-badge img { width: 20px; }
 
-    /* SEÇÕES */
     section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
-
     .section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
     .section-sub { font-size: 16px; color: #64748b; text-align: center; margin-bottom: 48px; }
 
@@ -66,21 +73,20 @@
     }
     .problema-card h3 { font-size: 18px; margin-bottom: 10px; color: #f1f5f9; }
     .problema-card p { font-size: 14px; color: #64748b; line-height: 1.6; }
-    .problema-icon { font-size: 28px; margin-bottom: 14px; }
+    .card-icon { width: 40px; height: 40px; margin-bottom: 14px; }
 
     /* FEATURES */
     .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
     .feature-card {
       background: #0d1117; border: 1px solid #1e2433;
-      border-radius: 12px; padding: 28px;
-      transition: border-color 0.2s;
+      border-radius: 12px; padding: 28px; transition: border-color 0.2s;
     }
     .feature-card:hover { border-color: #3b82f6; }
-    .feature-icon { font-size: 32px; margin-bottom: 16px; }
     .feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: #f1f5f9; }
     .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; }
+    .feature-icon { width: 36px; height: 36px; margin-bottom: 16px; }
 
-    /* SEGURANÇA */
+    /* SEGURANCA */
     .seguranca { background: #080f1a; padding: 80px 20px; }
     .seguranca-inner { max-width: 1100px; margin: 0 auto; }
     .seg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
@@ -89,11 +95,11 @@
       background: #0d1117; border: 1px solid #1e2433;
       border-radius: 10px; padding: 20px;
     }
-    .seg-icon { font-size: 24px; flex-shrink: 0; }
+    .seg-item img { width: 28px; flex-shrink: 0; margin-top: 2px; }
     .seg-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: #f1f5f9; }
     .seg-item p { font-size: 13px; color: #64748b; line-height: 1.5; }
 
-    /* PREÇOS */
+    /* PRECOS */
     .precos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
     .preco-card {
       background: #0d1117; border: 1px solid #1e2433;
@@ -114,21 +120,17 @@
     .preco-desc { font-size: 13px; color: #475569; margin-bottom: 28px; }
     .preco-lista { list-style: none; text-align: left; margin-bottom: 28px; }
     .preco-lista li { font-size: 14px; color: #94a3b8; padding: 6px 0; border-bottom: 1px solid #111520; }
-    .preco-lista li::before { content: '✓ '; color: #10b981; font-weight: 700; }
+    .preco-lista li::before { content: "✓ "; color: #10b981; font-weight: 700; }
     .btn-plano {
-      display: block; width: 100%;
-      background: #1e2433; color: #e2e8f0;
-      padding: 12px; border-radius: 8px;
-      font-size: 14px; font-weight: 600; text-decoration: none;
-      transition: background 0.2s;
+      display: block; width: 100%; background: #1e2433; color: #e2e8f0;
+      padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      text-decoration: none; transition: background 0.2s;
     }
     .btn-plano:hover { background: #2d3748; }
-    .btn-plano.primary {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      color: #fff;
-    }
+    .btn-plano.primary { background: #3b82f6; color: #fff; }
+    .btn-plano.primary:hover { background: #2563eb; }
 
-    /* CTA FINAL */
+    /* CTA */
     .cta {
       text-align: center; padding: 80px 20px;
       background: linear-gradient(135deg, #0d1117 0%, #111827 100%);
@@ -137,7 +139,6 @@
     .cta h2 { font-size: 40px; font-weight: 700; margin-bottom: 16px; }
     .cta p { font-size: 18px; color: #64748b; margin-bottom: 36px; }
 
-    /* FOOTER */
     footer {
       text-align: center; padding: 32px;
       border-top: 1px solid #1e2433;
@@ -148,19 +149,24 @@
 </head>
 <body>
 
+  <a href="index.html" class="btn-voltar">&#8592; Voltar ao Dashboard</a>
+
   <!-- HERO -->
   <div class="hero">
     <div class="hero-content">
       <div class="clouds">
-        <div class="cloud-badge"><img src="aws.png"> AWS</div>
-        <div class="cloud-badge"><img src="gcp.png"> Google Cloud</div>
-        <div class="cloud-badge"><img src="azure.png"> Azure</div>
+        <div class="cloud-badge"><img src="aws.png" alt="AWS"> AWS S3</div>
+        <div class="cloud-badge"><img src="gcp.png" alt="GCP"> Google Cloud</div>
+        <div class="cloud-badge"><img src="azure.png" alt="Azure"> Azure Blob</div>
       </div>
       <h1>Nano<span>-IaaS</span></h1>
-      <p>Dashboard multi-cloud para leitura e auditoria de dados. Acesse AWS, GCP e Azure em uma única interface segura.</p>
+      <p>Dashboard multi-cloud para leitura e auditoria de dados. Acesse AWS, GCP e Azure em uma unica interface segura.</p>
       <div class="hero-btns">
-        <a href="index.html" class="btn-primary">🚀 Acessar Dashboard</a>
-        <a href="https://github.com/Liucera/nano-iaas" class="btn-secondary">Ver no GitHub</a>
+        <a href="index.html" class="btn-dashboard">Acessar Dashboard</a>
+        <a href="https://github.com/Liucera/nano-iaas" class="btn-github" target="_blank">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.929.43.372.823 1.102.823 2.222 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.572C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Ver no GitHub
+        </a>
       </div>
     </div>
   </div>
@@ -169,22 +175,22 @@
   <div class="problema">
     <div class="problema-inner">
       <h2 class="section-title">O problema que resolvemos</h2>
-      <p class="section-sub">Gerenciar dados em múltiplas clouds é caro, complexo e arriscado</p>
+      <p class="section-sub">Gerenciar dados em multiplas clouds e caro, complexo e arriscado</p>
       <div class="problema-grid">
         <div class="problema-card">
-          <div class="problema-icon">😵</div>
+          <img class="card-icon" src="Todos.png" alt="Multi-cloud">
           <h3>3 consoles diferentes</h3>
           <p>Sua equipe perde horas navegando entre AWS, GCP e Azure para encontrar dados simples.</p>
         </div>
         <div class="problema-card">
-          <div class="problema-icon">🔑</div>
+          <img class="card-icon" src="azure.png" alt="Seguranca">
           <h3>Credenciais expostas</h3>
-          <p>Cada analista precisa de acesso direto às clouds, aumentando o risco de vazamento.</p>
+          <p>Cada analista precisa de acesso direto as clouds, aumentando o risco de vazamento.</p>
         </div>
         <div class="problema-card">
-          <div class="problema-icon">📋</div>
+          <img class="card-icon" src="Auditoria.png" alt="Auditoria">
           <h3>Sem rastreabilidade</h3>
-          <p>Você não sabe quem acessou quais dados e quando. Compliance impossível.</p>
+          <p>Voce nao sabe quem acessou quais dados e quando. Compliance impossivel.</p>
         </div>
       </div>
     </div>
@@ -192,122 +198,108 @@
 
   <!-- FEATURES -->
   <section>
-    <h2 class="section-title">Tudo que você precisa</h2>
+    <h2 class="section-title">Tudo que voce precisa</h2>
     <p class="section-sub">Uma plataforma completa para leitura e auditoria multi-cloud</p>
     <div class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">☁️</div>
+        <img class="feature-icon" src="Todos.png" alt="Multi-cloud">
         <h3>Multi-cloud unificado</h3>
-        <p>AWS S3, Google Cloud Storage e Azure Blob em uma única interface. Sem trocar de aba.</p>
+        <p>AWS S3, Google Cloud Storage e Azure Blob em uma unica interface. Sem trocar de aba.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🔒</div>
+        <img class="feature-icon" src="aws.png" alt="AWS">
         <h3>Read-only by design</h3>
-        <p>Nenhuma operação de escrita ou deleção é permitida. Seus dados estão sempre seguros.</p>
+        <p>Nenhuma operacao de escrita ou delecao e permitida. Seus dados estao sempre seguros.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">📋</div>
+        <img class="feature-icon" src="Auditoria.png" alt="Auditoria">
         <h3>Auditoria completa</h3>
-        <p>Registro de quem acessou o quê e quando. Exportação em CSV com filtros avançados.</p>
+        <p>Registro de quem acessou o que e quando. Exportacao em CSV com filtros avancados.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🔐</div>
+        <img class="feature-icon" src="gcp.png" alt="GCP">
         <h3>Login seguro com JWT</h3>
-        <p>Autenticação com token de acesso. Seus analistas nunca tocam nas credenciais das clouds.</p>
+        <p>Autenticacao com token de acesso. Seus analistas nunca tocam nas credenciais das clouds.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">📊</div>
+        <img class="feature-icon" src="azure.png" alt="Azure">
         <h3>Leitura de dados</h3>
         <p>Suporte a JSON, JSONL, CSV e LOG. Visualize os dados diretamente no browser.</p>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🚀</div>
+        <img class="feature-icon" src="Todos.png" alt="Deploy">
         <h3>Deploy na nuvem</h3>
         <p>Acesse de qualquer lugar com HTTPS. Backend no Railway, frontend no GitHub Pages.</p>
       </div>
     </div>
   </section>
 
-  <!-- SEGURANÇA -->
+  <!-- SEGURANCA -->
   <div class="seguranca">
     <div class="seguranca-inner">
-      <h2 class="section-title">Segurança em cada camada</h2>
-      <p class="section-sub">Defesa em profundidade — múltiplas barreiras de proteção</p>
+      <h2 class="section-title">Seguranca em cada camada</h2>
+      <p class="section-sub">Defesa em profundidade - multiplas barreiras de protecao</p>
       <div class="seg-grid">
         <div class="seg-item">
-          <div class="seg-icon">🔒</div>
-          <div>
-            <h4>JWT Token</h4>
-            <p>Sem token válido, sem acesso. Expira automaticamente.</p>
-          </div>
+          <img src="Auditoria.png" alt="JWT">
+          <div><h4>JWT Token</h4><p>Sem token valido, sem acesso. Expira automaticamente.</p></div>
         </div>
         <div class="seg-item">
-          <div class="seg-icon">🌐</div>
-          <div>
-            <h4>CORS restrito</h4>
-            <p>Só seu domínio pode chamar a API.</p>
-          </div>
+          <img src="gcp.png" alt="CORS">
+          <div><h4>CORS restrito</h4><p>So seu dominio pode chamar a API.</p></div>
         </div>
         <div class="seg-item">
-          <div class="seg-icon">🔐</div>
-          <div>
-            <h4>HTTPS</h4>
-            <p>Comunicação criptografada de ponta a ponta.</p>
-          </div>
+          <img src="azure.png" alt="HTTPS">
+          <div><h4>HTTPS</h4><p>Comunicacao criptografada de ponta a ponta.</p></div>
         </div>
         <div class="seg-item">
-          <div class="seg-icon">👁️</div>
-          <div>
-            <h4>Read-only</h4>
-            <p>Impossível apagar ou modificar dados.</p>
-          </div>
+          <img src="aws.png" alt="Read-only">
+          <div><h4>Read-only</h4><p>Impossivel apagar ou modificar dados.</p></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- PREÇOS -->
+  <!-- PRECOS -->
   <section>
-    <h2 class="section-title">Planos e preços</h2>
-    <p class="section-sub">Comece grátis. Escale quando precisar.</p>
+    <h2 class="section-title">Planos e precos</h2>
+    <p class="section-sub">Comece gratis. Escale quando precisar.</p>
     <div class="precos-grid">
       <div class="preco-card">
         <div class="preco-nome">Free</div>
-        <div class="preco-valor">R$ 0<span>/mês</span></div>
+        <div class="preco-valor">R$ 0<span>/mes</span></div>
         <div class="preco-desc">Para explorar e testar</div>
         <ul class="preco-lista">
-          <li>1 usuário</li>
+          <li>1 usuario</li>
           <li>3 providers mock</li>
           <li>100 logs de auditoria</li>
           <li>Dashboard web</li>
           <li>Suporte via GitHub</li>
         </ul>
-        <a href="index.html" class="btn-plano">Começar grátis</a>
+        <a href="index.html" class="btn-plano">Comecar gratis</a>
       </div>
-
       <div class="preco-card destaque">
-        <div class="badge-destaque">⭐ Mais popular</div>
+        <div class="badge-destaque">Mais popular</div>
         <div class="preco-nome">Pro</div>
-        <div class="preco-valor">R$ 299<span>/mês</span></div>
+        <div class="preco-valor">R$ 299<span>/mes</span></div>
         <div class="preco-desc">Para times de dados</div>
         <ul class="preco-lista">
-          <li>Até 10 usuários</li>
+          <li>Ate 10 usuarios</li>
           <li>AWS, GCP e Azure reais</li>
           <li>Logs ilimitados</li>
-          <li>Export CSV avançado</li>
-          <li>Suporte prioritário</li>
+          <li>Export CSV avancado</li>
+          <li>Suporte prioritario</li>
         </ul>
         <a href="index.html" class="btn-plano primary">Assinar Pro</a>
       </div>
-
       <div class="preco-card">
         <div class="preco-nome">Enterprise</div>
         <div class="preco-valor">Custom</div>
         <div class="preco-desc">Para grandes empresas</div>
         <ul class="preco-lista">
-          <li>Usuários ilimitados</li>
+          <li>Usuarios ilimitados</li>
           <li>Multi-tenant</li>
-          <li>Relatórios de compliance</li>
+          <li>Relatorios de compliance</li>
           <li>Deploy on-premise</li>
           <li>SLA garantido</li>
         </ul>
@@ -316,17 +308,16 @@
     </div>
   </section>
 
-  <!-- CTA FINAL -->
+  <!-- CTA -->
   <div class="cta">
-    <h2>Pronto para começar?</h2>
-    <p>Acesse o dashboard agora e veja seus dados multi-cloud em um só lugar.</p>
-    <a href="index.html" class="btn-primary">🚀 Acessar o Dashboard</a>
+    <h2>Pronto para comecar?</h2>
+    <p>Acesse o dashboard agora e veja seus dados multi-cloud em um so lugar.</p>
+    <a href="index.html" class="btn-dashboard">Acessar o Dashboard</a>
   </div>
 
-  <!-- FOOTER -->
   <footer>
-    <p>Nano-IaaS © 2026 — Desenvolvido por <a href="https://github.com/Liucera">Arlindo Barroso</a> · 
-    <a href="index.html">Dashboard</a> · 
+    <p>Nano-IaaS 2026 - Desenvolvido por <a href="https://github.com/Liucera">Arlindo Barroso</a> &middot;
+    <a href="index.html">Dashboard</a> &middot;
     <a href="https://github.com/Liucera/nano-iaas">GitHub</a></p>
   </footer>
 
