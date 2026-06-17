@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nano-IaaS — Multi-Cloud Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #050d1a; color: #e2e8f0; }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 40px 20px;
+      background-image: url('logo.svg');
+      background-size: cover; background-position: center;
+      position: relative;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(5, 13, 26, 0.75);
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -2px; margin-bottom: 16px; }
+    .hero h1 span { color: #3b82f6; }
+    .hero p { font-size: 20px; color: #94a3b8; max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
+    .hero-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff; padding: 14px 32px; border-radius: 10px;
+      font-size: 16px; font-weight: 600; text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary {
+      background: transparent; color: #94a3b8;
+      padding: 14px 32px; border-radius: 10px;
+      font-size: 16px; font-weight: 500; text-decoration: none;
+      border: 1px solid #1e2433; transition: border-color 0.2s;
+    }
+    .btn-secondary:hover { border-color: #3b82f6; color: #e2e8f0; }
+
+    /* CLOUDS BADGES */
+    .clouds { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; }
+    .cloud-badge {
+      display: flex; align-items: center; gap: 8px;
+      background: #0d1117; border: 1px solid #1e2433;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px; color: #64748b;
+    }
+    .cloud-badge img { width: 20px; }
+
+    /* SEÇÕES */
+    section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
+
+    .section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
+    .section-sub { font-size: 16px; color: #64748b; text-align: center; margin-bottom: 48px; }
+
+    /* PROBLEMA */
+    .problema { background: #080f1a; padding: 80px 20px; }
+    .problema-inner { max-width: 1100px; margin: 0 auto; }
+    .problema-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .problema-card {
+      background: #0d1117; border: 1px solid #1e2433;
+      border-radius: 12px; padding: 28px;
+    }
+    .problema-card h3 { font-size: 18px; margin-bottom: 10px; color: #f1f5f9; }
+    .problema-card p { font-size: 14px; color: #64748b; line-height: 1.6; }
+    .problema-icon { font-size: 28px; margin-bottom: 14px; }
+
+    /* FEATURES */
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+    .feature-card {
+      background: #0d1117; border: 1px solid #1e2433;
+      border-radius: 12px; padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover { border-color: #3b82f6; }
+    .feature-icon { font-size: 32px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: #f1f5f9; }
+    .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; }
+
+    /* SEGURANÇA */
+    .seguranca { background: #080f1a; padding: 80px 20px; }
+    .seguranca-inner { max-width: 1100px; margin: 0 auto; }
+    .seg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+    .seg-item {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: #0d1117; border: 1px solid #1e2433;
+      border-radius: 10px; padding: 20px;
+    }
+    .seg-icon { font-size: 24px; flex-shrink: 0; }
+    .seg-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: #f1f5f9; }
+    .seg-item p { font-size: 13px; color: #64748b; line-height: 1.5; }
+
+    /* PREÇOS */
+    .precos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .preco-card {
+      background: #0d1117; border: 1px solid #1e2433;
+      border-radius: 16px; padding: 36px; text-align: center;
+      position: relative; transition: border-color 0.2s;
+    }
+    .preco-card:hover { border-color: #3b82f6; }
+    .preco-card.destaque { border-color: #3b82f6; }
+    .badge-destaque {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff; font-size: 11px; font-weight: 600;
+      padding: 4px 16px; border-radius: 20px;
+    }
+    .preco-nome { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #94a3b8; }
+    .preco-valor { font-size: 48px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
+    .preco-valor span { font-size: 18px; color: #64748b; font-weight: 400; }
+    .preco-desc { font-size: 13px; color: #475569; margin-bottom: 28px; }
+    .preco-lista { list-style: none; text-align: left; margin-bottom: 28px; }
+    .preco-lista li { font-size: 14px; color: #94a3b8; padding: 6px 0; border-bottom: 1px solid #111520; }
+    .preco-lista li::before { content: '✓ '; color: #10b981; font-weight: 700; }
+    .btn-plano {
+      display: block; width: 100%;
+      background: #1e2433; color: #e2e8f0;
+      padding: 12px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-plano:hover { background: #2d3748; }
+    .btn-plano.primary {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff;
+    }
+
+    /* CTA FINAL */
+    .cta {
+      text-align: center; padding: 80px 20px;
+      background: linear-gradient(135deg, #0d1117 0%, #111827 100%);
+      border-top: 1px solid #1e2433;
+    }
+    .cta h2 { font-size: 40px; font-weight: 700; margin-bottom: 16px; }
+    .cta p { font-size: 18px; color: #64748b; margin-bottom: 36px; }
+
+    /* FOOTER */
+    footer {
+      text-align: center; padding: 32px;
+      border-top: 1px solid #1e2433;
+      font-size: 13px; color: #374151;
+    }
+    footer a { color: #3b82f6; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-content">
+      <div class="clouds">
+        <div class="cloud-badge"><img src="aws.png"> AWS</div>
+        <div class="cloud-badge"><img src="gcp.png"> Google Cloud</div>
+        <div class="cloud-badge"><img src="azure.png"> Azure</div>
+      </div>
+      <h1>Nano<span>-IaaS</span></h1>
+      <p>Dashboard multi-cloud para leitura e auditoria de dados. Acesse AWS, GCP e Azure em uma única interface segura.</p>
+      <div class="hero-btns">
+        <a href="index.html" class="btn-primary">🚀 Acessar Dashboard</a>
+        <a href="https://github.com/Liucera/nano-iaas" class="btn-secondary">Ver no GitHub</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROBLEMA -->
+  <div class="problema">
+    <div class="problema-inner">
+      <h2 class="section-title">O problema que resolvemos</h2>
+      <p class="section-sub">Gerenciar dados em múltiplas clouds é caro, complexo e arriscado</p>
+      <div class="problema-grid">
+        <div class="problema-card">
+          <div class="problema-icon">😵</div>
+          <h3>3 consoles diferentes</h3>
+          <p>Sua equipe perde horas navegando entre AWS, GCP e Azure para encontrar dados simples.</p>
+        </div>
+        <div class="problema-card">
+          <div class="problema-icon">🔑</div>
+          <h3>Credenciais expostas</h3>
+          <p>Cada analista precisa de acesso direto às clouds, aumentando o risco de vazamento.</p>
+        </div>
+        <div class="problema-card">
+          <div class="problema-icon">📋</div>
+          <h3>Sem rastreabilidade</h3>
+          <p>Você não sabe quem acessou quais dados e quando. Compliance impossível.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section>
+    <h2 class="section-title">Tudo que você precisa</h2>
+    <p class="section-sub">Uma plataforma completa para leitura e auditoria multi-cloud</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">☁️</div>
+        <h3>Multi-cloud unificado</h3>
+        <p>AWS S3, Google Cloud Storage e Azure Blob em uma única interface. Sem trocar de aba.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Read-only by design</h3>
+        <p>Nenhuma operação de escrita ou deleção é permitida. Seus dados estão sempre seguros.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Auditoria completa</h3>
+        <p>Registro de quem acessou o quê e quando. Exportação em CSV com filtros avançados.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔐</div>
+        <h3>Login seguro com JWT</h3>
+        <p>Autenticação com token de acesso. Seus analistas nunca tocam nas credenciais das clouds.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Leitura de dados</h3>
+        <p>Suporte a JSON, JSONL, CSV e LOG. Visualize os dados diretamente no browser.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🚀</div>
+        <h3>Deploy na nuvem</h3>
+        <p>Acesse de qualquer lugar com HTTPS. Backend no Railway, frontend no GitHub Pages.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEGURANÇA -->
+  <div class="seguranca">
+    <div class="seguranca-inner">
+      <h2 class="section-title">Segurança em cada camada</h2>
+      <p class="section-sub">Defesa em profundidade — múltiplas barreiras de proteção</p>
+      <div class="seg-grid">
+        <div class="seg-item">
+          <div class="seg-icon">🔒</div>
+          <div>
+            <h4>JWT Token</h4>
+            <p>Sem token válido, sem acesso. Expira automaticamente.</p>
+          </div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-icon">🌐</div>
+          <div>
+            <h4>CORS restrito</h4>
+            <p>Só seu domínio pode chamar a API.</p>
+          </div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-icon">🔐</div>
+          <div>
+            <h4>HTTPS</h4>
+            <p>Comunicação criptografada de ponta a ponta.</p>
+          </div>
+        </div>
+        <div class="seg-item">
+          <div class="seg-icon">👁️</div>
+          <div>
+            <h4>Read-only</h4>
+            <p>Impossível apagar ou modificar dados.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREÇOS -->
+  <section>
+    <h2 class="section-title">Planos e preços</h2>
+    <p class="section-sub">Comece grátis. Escale quando precisar.</p>
+    <div class="precos-grid">
+      <div class="preco-card">
+        <div class="preco-nome">Free</div>
+        <div class="preco-valor">R$ 0<span>/mês</span></div>
+        <div class="preco-desc">Para explorar e testar</div>
+        <ul class="preco-lista">
+          <li>1 usuário</li>
+          <li>3 providers mock</li>
+          <li>100 logs de auditoria</li>
+          <li>Dashboard web</li>
+          <li>Suporte via GitHub</li>
+        </ul>
+        <a href="index.html" class="btn-plano">Começar grátis</a>
+      </div>
+
+      <div class="preco-card destaque">
+        <div class="badge-destaque">⭐ Mais popular</div>
+        <div class="preco-nome">Pro</div>
+        <div class="preco-valor">R$ 299<span>/mês</span></div>
+        <div class="preco-desc">Para times de dados</div>
+        <ul class="preco-lista">
+          <li>Até 10 usuários</li>
+          <li>AWS, GCP e Azure reais</li>
+          <li>Logs ilimitados</li>
+          <li>Export CSV avançado</li>
+          <li>Suporte prioritário</li>
+        </ul>
+        <a href="index.html" class="btn-plano primary">Assinar Pro</a>
+      </div>
+
+      <div class="preco-card">
+        <div class="preco-nome">Enterprise</div>
+        <div class="preco-valor">Custom</div>
+        <div class="preco-desc">Para grandes empresas</div>
+        <ul class="preco-lista">
+          <li>Usuários ilimitados</li>
+          <li>Multi-tenant</li>
+          <li>Relatórios de compliance</li>
+          <li>Deploy on-premise</li>
+          <li>SLA garantido</li>
+        </ul>
+        <a href="mailto:contato@nano-iaas.com" class="btn-plano">Falar com vendas</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <div class="cta">
+    <h2>Pronto para começar?</h2>
+    <p>Acesse o dashboard agora e veja seus dados multi-cloud em um só lugar.</p>
+    <a href="index.html" class="btn-primary">🚀 Acessar o Dashboard</a>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>Nano-IaaS © 2026 — Desenvolvido por <a href="https://github.com/Liucera">Arlindo Barroso</a> · 
+    <a href="index.html">Dashboard</a> · 
+    <a href="https://github.com/Liucera/nano-iaas">GitHub</a></p>
+  </footer>
+
+</body>
+</html>
