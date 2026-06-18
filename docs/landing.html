@@ -53,11 +53,11 @@
 
     .clouds { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
     .cloud-badge {
-      display: flex; align-items: center; gap: 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
       background: #0d1117; border: 1px solid #1e2433;
-      padding: 8px 16px; border-radius: 20px; font-size: 13px; color: #64748b;
+      padding: 8px 16px; border-radius: 36px; font-size: 13px; color: #64748b;
     }
-    .cloud-badge img { width: 20px; }
+    .cloud-badge img { width: 36px; }
 
     section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
     .section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
@@ -155,9 +155,9 @@
   <div class="hero">
     <div class="hero-content">
       <div class="clouds">
-        <div class="cloud-badge"> AWS</div>
-        <div class="cloud-badge"> Google Cloud Platform</div>
-        <div class="cloud-badge"> Microsoft Azure</div>
+       <div class="cloud-badge"><img src="aws.png" alt="AWS"> AWS</div>
+       <div class="cloud-badge"><img src="gcp.png" alt="GCP"> Google Cloud Platform</div>
+       <div class="cloud-badge"><img src="azure.png" alt="Azure"> Microsoft Azure</div>
       </div>
       <h1>Nano<span>-IaaS</span></h1>
       <p>Dashboard multi-cloud para leitura e auditoria de dados. Acesse AWS, GCP e Azure em uma unica interface segura.</p>
