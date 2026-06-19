@@ -103,20 +103,6 @@ nano-iaas config set
 
 ---
 
-## Roadmap
-
-- [x] CLI multi-cloud
-- [x] Providers GCP, Azure e AWS mock
-- [x] Backend FastAPI com JWT
-- [x] Dashboard web
-- [x] Logs de auditoria
-- [x] Deploy na nuvem (Railway + GitHub Pages)
-- [ ] Providers reais (GCP e Azure)
-- [ ] Landing page
-- [ ] Multiplos usuarios com niveis de acesso
-
----
-
 ## Autor
 
 Arlindo Barroso - Estudante de Provisionamento de Servicos Computacionais (CLOUD) pelo CAPACITA IREDE
