@@ -22,7 +22,7 @@ class S3Reader(CloudProvider):
             mode = profile.get('mode', 'sso')
             profile_name = profile.get('profile_name', 'default')
             
-            if mode == 'sso':
+            if mode in ('sso', 'cli'):
                 self.session = boto3.Session(profile_name=profile_name)
             else:
                 self.session = boto3.Session()

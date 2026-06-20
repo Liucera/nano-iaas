@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from providers.gcp.gcs_reader_mock import GCSReaderMock
 from providers.azure.blob_reader_mock import BlobReaderMock
-from providers.aws.s3_reader_mock import S3ReaderMock
+from providers.aws.s3_reader import S3Reader
 
 # ── Configurações de segurança ──────────────────────────────
 SECRET_KEY = "nano-iaas-chave-secreta-2026"
@@ -105,8 +105,11 @@ def list_resources(provider: str, usuario: str = Depends(usuario_atual)):
             p = BlobReaderMock()
             p.authenticate({})
         elif provider == "aws":
-            p = S3ReaderMock()
-            p.authenticate({})
+            p = S3Reader()
+            p.authenticate({
+                'mode': 'cli',
+                                                                                                                                                                                                                                                     'profile_name': 'nano-iaas'
+    })
         else:
             return {"error": "Provider não encontrado"}
 
@@ -124,15 +127,18 @@ def read_resource(provider: str, bucket: str, usuario: str = Depends(usuario_atu
         elif provider == "azure":
             p = BlobReaderMock()
         elif provider == "aws":
-            p = S3ReaderMock()
+            p = S3Reader()
+            p.authenticate({
+                'mode': 'cli',
+                'profile_name': 'nano-iaas'
+    })
         else:
             return {"error": "Provider não encontrado"}
 
-        p.authenticate({})
 
         prefix = f"gs://{bucket}/dados/" if provider == "gcp" else \
                  f"azure://{bucket}/dados/" if provider == "azure" else \
-                 f"s3://{bucket}/dados/"
+                 f"s3://{bucket}/"
 
         records = list(p.read(prefix))
         registrar_acesso(usuario, "READ", provider, bucket, f"{len(records)} registros")

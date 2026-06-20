@@ -175,3 +175,11 @@
 2026-06-08 21:32:07 | admin | LIST | gcp | - | 3 recursos
 2026-06-08 21:32:07 | admin | LIST | azure | - | 3 recursos
 2026-06-08 21:32:07 | admin | LIST | aws | - | 3 recursos
+Found credentials in shared credentials file: ~/.aws/credentials
+2026-06-20 18:06:39 | admin | LIST | aws | - | 0 recursos
+Found credentials in shared credentials file: ~/.aws/credentials
+2026-06-20 18:12:49 | admin | LIST | aws | - | 1 recursos
+Found credentials in shared credentials file: ~/.aws/credentials
+2026-06-20 18:35:33 | admin | READ | aws | nano-iaas-teste | 0 registros
+Found credentials in shared credentials file: ~/.aws/credentials
+2026-06-20 18:37:46 | admin | READ | aws | nano-iaas-teste | 6 registros
