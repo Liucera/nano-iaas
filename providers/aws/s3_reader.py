@@ -17,24 +17,20 @@ class S3Reader(CloudProvider):
         self.data_reader = DataReader()
     
     def authenticate(self, profile: Dict[str, Any]) -> bool:
-        """Autentica usando profile AWS."""
+        """Autentica usando profile AWS ou variaveis de ambiente."""
         try:
-            mode = profile.get('mode', 'sso')
-            profile_name = profile.get('profile_name', 'default')
-            
-            if mode in ('sso', 'cli'):
-                self.session = boto3.Session(profile_name=profile_name)
-            else:
+            import os
+            if os.environ.get('AWS_ACCESS_KEY_ID'):
                 self.session = boto3.Session()
-            
+            else:
+                mode = profile.get('mode', 'cli')
+                profile_name = profile.get('profile_name', 'nano-iaas')
+                if mode in ('sso', 'cli'):
+                    self.session = boto3.Session(profile_name=profile_name)
+                else:
+                    self.session = boto3.Session()
             self.client = self.session.client('s3')
-            self.client.list_buckets()
-            print("✅ AWS autenticado com sucesso!")
-            return True
-        except Exception as e:
-            print(f"❌ Falha na autenticação AWS: {e}")
-            return False
-    
+
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         """Lista buckets S3."""
         try:
