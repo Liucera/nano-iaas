@@ -30,6 +30,10 @@ class S3Reader(CloudProvider):
                 else:
                     self.session = boto3.Session()
             self.client = self.session.client('s3')
+            return True
+        except Exception as e:
+            print(f"❌ Erro na autenticação AWS: {e}")
+            return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         """Lista buckets S3."""

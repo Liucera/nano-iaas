@@ -108,8 +108,8 @@ def list_resources(provider: str, usuario: str = Depends(usuario_atual)):
             p = S3Reader()
             p.authenticate({
                 'mode': 'cli',
-                                                                                                                                                                                                                                                     'profile_name': 'nano-iaas'
-    })
+                'profile_name': 'nano-iaas'
+            })
         else:
             return {"error": "Provider não encontrado"}
 
@@ -131,7 +131,7 @@ def read_resource(provider: str, bucket: str, usuario: str = Depends(usuario_atu
             p.authenticate({
                 'mode': 'cli',
                 'profile_name': 'nano-iaas'
-    })
+            })
         else:
             return {"error": "Provider não encontrado"}
 
