@@ -24,10 +24,23 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background: #050d1a;
-     }
+      background-color: #050d1a;
+      background-image: url('logo.svg');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 480px;
+      position: relative;
+    }
+    #tela-login::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 13, 26, 0.82);
+    }
 
     .login-box {
+      position: relative;
+      z-index: 1;      
       background: #0d1117;
       border: 1px solid #1e2433;
       border-radius: 16px;
