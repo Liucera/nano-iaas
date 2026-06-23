@@ -542,8 +542,16 @@
   <script>
     const API = 'https://web-production-87d4d.up.railway.app';
     const counts = { gcp: 0, azure: 0, aws: 0 };
-    let token = null;
+    let token = sessionStorage.getItem('nano_iaas_token');
     let recursosAtuais = [];
+
+    if (token) {
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('tela-dashboard').style.display = 'block';
+        carregarTodos();
+      });
+    }
 
     function setStatus(msg, tipo) {
       const el = document.getElementById('status');
@@ -576,6 +584,7 @@
         if (!res.ok) throw new Error(data.detail);
 
         token = data.access_token;
+        sessionStorage.setItem('nano_iaas_token', token);
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('tela-dashboard').style.display = 'block';
         carregarTodos();
@@ -586,6 +595,7 @@
 
     function fazerLogout() {
       token = null;
+      sessionStorage.removeItem('nano_iaas_token');
       document.getElementById('tela-login').style.display = 'flex';
       document.getElementById('tela-dashboard').style.display = 'none';
       document.getElementById('input-senha').value = '';
@@ -616,24 +626,33 @@
       }
     }
 
+    function sessaoExpirada() {
+      setStatus('Sessão expirada. Faça login novamente.', 'error');
+      fazerLogout();
+    }
+
     async function carregarTodos() {
       setStatus('Carregando todos os providers...', 'loading');
       try {
         const [gcp, azure, aws] = await Promise.all([
-          fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-          fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-          fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }),
         ]);
-        counts.gcp = gcp.resources.length;
-        counts.azure = azure.resources.length;
-        counts.aws = aws.resources.length;
+        if (gcp.status === 401 || azure.status === 401 || aws.status === 401) {
+          return sessaoExpirada();
+        }
+        const [gcpData, azureData, awsData] = await Promise.all([gcp.json(), azure.json(), aws.json()]);
+        counts.gcp = gcpData.resources.length;
+        counts.azure = azureData.resources.length;
+        counts.aws = awsData.resources.length;
         atualizarContadores();
         renderizar([
-          { provider: 'gcp', resources: gcp.resources },
-          { provider: 'azure', resources: azure.resources },
-          { provider: 'aws', resources: aws.resources },
+          { provider: 'gcp', resources: gcpData.resources },
+          { provider: 'azure', resources: azureData.resources },
+          { provider: 'aws', resources: awsData.resources },
         ]);
-        const total = gcp.resources.length + azure.resources.length + aws.resources.length;
+        const total = gcpData.resources.length + azureData.resources.length + awsData.resources.length;
         setStatus(`${total} recursos carregados — GCP + Azure + AWS`, 'success');
       } catch (e) {
         setStatus(`Erro: ${e.message}`, 'error');
