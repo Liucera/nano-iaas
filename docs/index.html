@@ -649,37 +649,48 @@
     }
 
     function desenharTabela(lista) {
-      const corpo = document.getElementById('corpo');
-      corpo.innerHTML = '';
+      const wrap = document.getElementById('painel-recursos');
       const icones = {
         gcp: '<img src="gcp.png" alt="" style="width:16px;vertical-align:middle">',
         azure: '<img src="azure.png" alt="" style="width:16px;vertical-align:middle">',
         aws: '<img src="aws.png" alt="" style="width:16px;vertical-align:middle">'
       };
 
+      let linhas = '';
       if (lista.length === 0) {
-        corpo.innerHTML = '<tr><td colspan="5" class="empty">Nenhum recurso encontrado.</td></tr>';
-        return;
+        linhas = '<tr><td colspan="5" class="empty">Nenhum recurso encontrado.</td></tr>';
+      } else {
+        lista.forEach(r => {
+          const provider = r.provider;
+          linhas += `
+            <tr style="cursor:pointer" title="Clique para ver os dados" onclick="lerDados('${provider}','${r.name}')">
+              <td><div class="provider-cell">
+                <span>${icones[provider]}</span>
+                <span class="provider-name">${provider.toUpperCase()}</span>
+              </div></td>
+              <td class="resource-name">${r.name} <span style="font-size:11px;color:#6b6b6b">▶ ver dados</span></td>
+              <td><span class="type-badge type-${r.type}">${r.type}</span></td>
+              <td class="date-cell location-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
+              <td class="date-cell">${formatDate(r.created) || '—'}</td>
+            </tr>
+          `;
+        });
       }
 
-      lista.forEach(r => {
-        const provider = r.provider;
-        const tr = document.createElement('tr');
-        tr.style.cursor = 'pointer';
-        tr.title = 'Clique para ver os dados';
-        tr.onclick = () => lerDados(provider, r.name);
-        tr.innerHTML = `
-          <td><div class="provider-cell">
-            <span>${icones[provider]}</span>
-            <span class="provider-name">${provider.toUpperCase()}</span>
-          </div></td>
-          <td class="resource-name">${r.name} <span style="font-size:11px;color:#6b6b6b">▶ ver dados</span></td>
-          <td><span class="type-badge type-${r.type}">${r.type}</span></td>
-          <td class="date-cell location-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
-          <td class="date-cell">${formatDate(r.created) || '—'}</td>
-        `;
-        corpo.appendChild(tr);
-      });
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Localização / Modificado</th>
+              <th>Criado</th>
+            </tr>
+          </thead>
+          <tbody id="corpo">${linhas}</tbody>
+        </table>
+      `;
     }
 
     function filtrarRecursos(termo) {
