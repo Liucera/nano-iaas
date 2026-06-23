@@ -4,13 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nano-IaaS Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background-color: #0a0c10;
-      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #E0E0E0;
       min-height: 100vh;
     }
 
@@ -27,6 +29,7 @@
       background-size: 1440px;
       position: relative;
     }
+
     #tela-login::before {
       content: "";
       position: absolute;
@@ -36,28 +39,19 @@
 
     .login-box {
       position: relative;
-      z-index: 1;      
-      background: rgba(13, 17, 23, 0.8);    
-      border: 1px solid #1e2433;
+      z-index: 1;
+      background: rgba(13, 17, 23, 0.8);
+      border: 1px solid #2C2C2C;
       border-radius: 16px;
       padding: 40px;
       width: 100%;
       max-width: 380px;
     }
 
-    .login-logo {
-      width: 48px; height: 48px;
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      border-radius: 12px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
-      margin: 0 auto 20px;
-    }
-
     .login-box h2 {
       text-align: center;
       font-size: 20px;
-      font-weight: 600;
+      font-weight: 700;
       color: #f1f5f9;
       margin-bottom: 6px;
     }
@@ -65,19 +59,17 @@
     .login-box p {
       text-align: center;
       font-size: 13px;
-      color: #475569;
+      color: #B0B0B0;
       margin-bottom: 28px;
     }
 
-    .campo {
-      margin-bottom: 16px;
-    }
+    .campo { margin-bottom: 16px; }
 
     .campo label {
       display: block;
       font-size: 12px;
       font-weight: 500;
-      color: #64748b;
+      color: #B0B0B0;
       margin-bottom: 6px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -85,17 +77,18 @@
 
     .campo input {
       width: 100%;
-      background: #111520;
-      border: 1px solid #1e2433;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
       border-radius: 8px;
       padding: 10px 14px;
       font-size: 14px;
-      color: #e2e8f0;
+      color: #E0E0E0;
       outline: none;
       transition: border-color 0.15s;
+      font-family: inherit;
     }
 
-    .campo input:focus { border-color: #3b82f6; }
+    .campo input:focus { border-color: #3F51B5; }
 
     .btn-login {
       width: 100%;
@@ -109,6 +102,7 @@
       cursor: pointer;
       margin-top: 8px;
       transition: opacity 0.15s;
+      font-family: inherit;
     }
 
     .btn-login:hover { opacity: 0.9; }
@@ -124,256 +118,432 @@
       display: none;
     }
 
-    /* ── DASHBOARD ── */
+    /* ── DASHBOARD LAYOUT ── */
     #tela-dashboard {
       display: none;
-      padding: 32px;
+      min-height: 100vh;
     }
 
-    header {
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      background: #1E1E1E;
+      border-right: 1px solid #2C2C2C;
+      padding: 28px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-brand {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 32px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid #1e2433;
+      gap: 10px;
+      padding: 0 8px;
+      margin-bottom: 36px;
     }
 
-    .header-left { display: flex; align-items: center; gap: 12px; }
+    .sidebar-brand img { width: 38px; height: 38px; border-radius: 8px; }
+    .sidebar-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .sidebar-brand-text strong { font-size: 14px; color: #f1f5f9; font-weight: 700; }
+    .sidebar-brand-text span { font-size: 11px; color: #B0B0B0; }
 
-    .logo {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px;
-    }
-
-    header h1 { font-size: 20px; font-weight: 600; color: #f1f5f9; }
-
-    .badge {
-      background: #1e2433;
-      color: #64748b;
+    .sidebar-section-label {
       font-size: 11px;
-      padding: 3px 10px;
-      border-radius: 20px;
-      border: 1px solid #2d3748;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b6b6b;
+      font-weight: 600;
+      margin: 18px 8px 8px;
     }
 
-    .btn-logout {
-      background: #1a0a0a;
-      border: 1px solid #7f1d1d;
-      color: #ef4444;
-      font-size: 12px;
-      padding: 6px 14px;
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
       border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #B0B0B0;
+      text-decoration: none;
       cursor: pointer;
-      transition: opacity 0.15s;
+      border: 1px solid transparent;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s;
+      font-family: inherit;
     }
 
-    .btn-logout:hover { opacity: 0.8; }
+    .sidebar-link img { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-link:hover { background: #2A2A2A; color: #E0E0E0; }
+    .sidebar-link.active { background: #2A2A2A; color: #BB86FC; border-color: #3F51B5; }
+
+    .sidebar-link.disabled { opacity: 0.4; cursor: not-allowed; }
+    .sidebar-link.disabled:hover { background: transparent; color: #B0B0B0; }
+
+    .sidebar-link.logout { color: #E53935; margin-top: auto; }
+    .sidebar-link.logout:hover { background: #2a1414; color: #f87171; }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      flex: 1;
+      padding: 36px 44px;
+      max-width: 1400px;
+    }
+
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .page-header p { font-size: 13px; color: #B0B0B0; }
 
     .counters {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 28px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px;
+      margin-bottom: 36px;
     }
 
     .counter-card {
-      background: #111520;
-      border: 1px solid #1e2433;
-      border-radius: 12px;
-      padding: 16px 24px;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 14px;
+      padding: 22px 24px;
       display: flex;
       align-items: center;
-      gap: 14px;
-      min-width: 180px;
+      gap: 16px;
+      transition: border-color 0.2s;
     }
+
+    .counter-card:hover { border-color: #3F51B5; }
 
     .counter-icon {
-      width: 40px; height: 40px;
-      border-radius: 10px;
+      width: 46px; height: 46px;
+      border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .counter-icon img { width: 26px; }
+
+    .counter-icon.gcp   { background: rgba(52, 168, 83, 0.15); border: 1px solid #34A853; }
+    .counter-icon.azure { background: rgba(0, 120, 212, 0.15); border: 1px solid #0078D4; }
+    .counter-icon.total { background: rgba(187, 134, 252, 0.15); border: 1px solid #BB86FC; }
+    .counter-icon.aws   { background: rgba(255, 153, 0, 0.15); border: 1px solid #FF9900; }
+
+    .counter-num   { font-size: 26px; font-weight: 800; color: #f1f5f9; line-height: 1.1; }
+    .counter-label { font-size: 12px; color: #B0B0B0; margin-top: 4px; }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
-    .counter-icon.gcp   { background: #1a2535; }
-    .counter-icon.azure { background: #111e35; }
-    .counter-icon.total { background: #1a1535; }
-    .counter-icon.aws   { background: #2d1a00; }
-
-    .counter-num   { font-size: 24px; font-weight: 700; color: #f1f5f9; line-height: 1; }
-    .counter-label { font-size: 12px; color: #475569; margin-top: 4px; }
-
-    .providers { display: flex; gap: 10px; margin-bottom: 24px; }
-
-    .btn {
+    .chip {
       display: flex; align-items: center; gap: 8px;
-      padding: 9px 20px;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      font-size: 13px; font-weight: 500;
+      padding: 9px 18px;
+      border: 1px solid;
+      border-radius: 999px;
+      font-size: 13px; font-weight: 600;
       cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+      background: #1E1E1E;
+    }
+    .chip img { width: 16px; }
+
+    .chip-gcp   { color: #34A853; border-color: #34A853; }
+    .chip-gcp:hover { background: rgba(52, 168, 83, 0.12); }
+    .chip-azure { color: #0078D4; border-color: #0078D4; }
+    .chip-azure:hover { background: rgba(0, 120, 212, 0.12); }
+    .chip-aws { color: #FF9900; border-color: #FF9900; }
+    .chip-aws:hover { background: rgba(255, 153, 0, 0.12); }
+    .chip-all   { color: #B0B0B0; border-color: #2C2C2C; }
+    .chip-all:hover { background: #2A2A2A; }
+    .chip-audit { color: #BB86FC; border-color: #BB86FC; }
+    .chip-audit:hover { background: rgba(187, 134, 252, 0.12); }
+
+    .search-box {
+      margin-left: auto;
+      position: relative;
+      min-width: 240px;
     }
 
-    .btn-gcp   { background: #1a2535; color: #7dd3fc; border-color: #1e3a5f; }
-    .btn-gcp:hover { background: #1e2e42; border-color: #2563eb; }
-    .btn-azure { background: #111e35; color: #93c5fd; border-color: #1e3050; }
-    .btn-azure:hover { background: #162040; border-color: #3b82f6; }
-    .btn-aws { background: #2d1a00; color: #fb923c; border-color: #92400e; }
-    .btn-aws:hover { background: #3d2200; border-color: #f97316; }
-    .btn-all   { background: #1a1535; color: #c4b5fd; border-color: #2d2050; }
-    .btn-all:hover { background: #1e1a42; border-color: #7c3aed; }
-    .btn-audit { background: #0f1f0f; color: #4ade80; border-color: #14532d; }
-    .btn-audit:hover { background: #14280a; border-color: #16a34a; }
+    .search-box input {
+      width: 100%;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 999px;
+      padding: 9px 16px 9px 36px;
+      font-size: 13px;
+      color: #E0E0E0;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .search-box input:focus { border-color: #3F51B5; }
+    .search-box .ico-search {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: #6b6b6b; font-size: 13px; pointer-events: none;
+    }
 
     .status {
-      font-size: 13px; color: #475569;
-      margin-bottom: 16px; min-height: 18px;
+      font-size: 13px; color: #B0B0B0;
+      margin-bottom: 18px; min-height: 18px;
     }
-    .status.loading { color: #f59e0b; }
-    .status.success { color: #10b981; }
-    .status.error   { color: #ef4444; }
+    .status.loading { color: #FF9900; }
+    .status.success { color: #34A853; }
+    .status.error   { color: #E53935; }
 
     .table-wrap {
-      background: #0d1117;
-      border: 1px solid #1e2433;
-      border-radius: 12px;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 14px;
       overflow: hidden;
     }
 
     table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #111520; }
+    thead tr { background: #181818; }
 
     th {
-      text-align: left; padding: 12px 20px;
-      font-size: 11px; font-weight: 600;
+      text-align: left; padding: 13px 22px;
+      font-size: 11px; font-weight: 700;
       text-transform: uppercase; letter-spacing: 0.08em;
-      color: #374151; border-bottom: 1px solid #1e2433;
+      color: #6b6b6b; border-bottom: 1px solid #2C2C2C;
     }
 
     td {
-      padding: 13px 20px; font-size: 13px;
-      color: #94a3b8; border-bottom: 1px solid #111520;
+      padding: 14px 22px; font-size: 13px;
+      color: #B0B0B0; border-bottom: 1px solid #2C2C2C;
     }
 
+    tbody tr:nth-child(odd) { background: #1E1E1E; }
+    tbody tr:nth-child(even) { background: #181818; }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #0f1420; color: #cbd5e1; }
+    tr:hover td { background: #2A2A2A; color: #E0E0E0; }
 
     .provider-cell { display: flex; align-items: center; gap: 8px; }
-    .provider-name { font-size: 12px; font-weight: 600; color: #64748b; }
+    .provider-cell img { width: 16px; }
+    .provider-name { font-size: 12px; font-weight: 700; color: #B0B0B0; }
 
     .type-badge {
-      display: inline-block; padding: 2px 10px;
-      border-radius: 20px; font-size: 11px; font-weight: 500;
+      display: inline-block; padding: 3px 12px;
+      border-radius: 999px; font-size: 11px; font-weight: 600;
     }
-    .type-bucket    { background: #14532d33; color: #4ade80; border: 1px solid #14532d; }
-    .type-container { background: #1e1b4b33; color: #a5b4fc; border: 1px solid #1e1b4b; }
+    .type-bucket    { background: rgba(52, 168, 83, 0.15); color: #34A853; border: 1px solid #34A853; }
+    .type-container { background: rgba(0, 120, 212, 0.15); color: #0078D4; border: 1px solid #0078D4; }
 
-    .resource-name { color: #e2e8f0; font-weight: 500; }
-    .date-cell { font-family: monospace; font-size: 12px; color: #475569; }
+    .resource-name { color: #E0E0E0; font-weight: 600; }
+    .date-cell { font-family: monospace; font-size: 12px; color: #6b6b6b; }
+    .location-cell { color: #9ca3af; }
 
-    .empty { text-align: center; padding: 60px; color: #1e2433; font-size: 14px; }
+    .empty { text-align: center; padding: 70px; color: #2C2C2C; font-size: 14px; }
+
+    /* ── PAGINACAO / DOWNLOAD ── */
+    .table-footer {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 24px; flex-wrap: wrap;
+    }
+    .table-footer span { font-size: 12px; color: #6b6b6b; }
+    .page-btn {
+      background: #1E1E1E; border: 1px solid #2C2C2C; color: #B0B0B0;
+      font-size: 11px; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .page-btn.active { background: rgba(52, 168, 83, 0.15); color: #34A853; border-color: #34A853; }
+    .page-btn:hover { border-color: #3F51B5; }
+    .btn-csv {
+      background: #1E1E1E; border: 1px solid #BB86FC; color: #BB86FC;
+      font-size: 11px; padding: 4px 14px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
+    }
+    .btn-csv:hover { opacity: 0.8; }
+
+    /* ── TIMELINE DE AUDITORIA ── */
+    .timeline { padding: 28px 32px; }
+    .timeline-item {
+      display: flex; gap: 16px; padding-bottom: 26px;
+      position: relative;
+    }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: 17px; top: 36px; bottom: 0;
+      width: 1px; background: #2C2C2C;
+    }
+    .timeline-item:last-child::before { display: none; }
+
+    .timeline-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; z-index: 1;
+      border: 1px solid;
+    }
+    .timeline-icon img { width: 18px; }
+    .timeline-icon.gcp   { border-color: #34A853; background: rgba(52, 168, 83, 0.12); }
+    .timeline-icon.azure { border-color: #0078D4; background: rgba(0, 120, 212, 0.12); }
+    .timeline-icon.aws   { border-color: #FF9900; background: rgba(255, 153, 0, 0.12); }
+
+    .timeline-body { flex: 1; padding-top: 2px; }
+    .timeline-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+    .timeline-action {
+      font-size: 12px; font-weight: 700; padding: 2px 10px;
+      border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+      background: #1E1E1E; border: 1px solid #2C2C2C; color: #B0B0B0;
+    }
+    .timeline-time { font-size: 11px; font-family: monospace; color: #6b6b6b; }
+    .timeline-desc { font-size: 13px; color: #B0B0B0; }
+    .timeline-desc strong { color: #E0E0E0; font-weight: 600; }
+    .timeline-meta { font-size: 12px; color: #6b6b6b; margin-top: 4px; }
+
+    footer.app-footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #B0B0B0;
+      background: #121212;
+      border-top: 1px solid #2C2C2C;
+    }
   </style>
 </head>
 <body>
 
   <!-- TELA DE LOGIN -->
   <div id="tela-login">
-    <div class="login-box"> 
+    <div class="login-box">
       <h2>Nano-IaaS</h2>
       <p>Faça login para acessar o dashboard</p>
 
       <div class="campo">
-        <label>Usuário</label>
+        <label for="input-usuario">Usuário</label>
         <input type="text" id="input-usuario" placeholder="admin" />
       </div>
 
       <div class="campo">
-        <label>Senha</label>
+        <label for="input-senha">Senha</label>
         <input type="password" id="input-senha" placeholder="••••••••"
                onkeydown="if(event.key==='Enter') fazerLogin()" />
       </div>
 
-      <button class="btn-login" onclick="fazerLogin()">Entrar</button><a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#94a3b8;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">Saiba mais sobre o Nano-IaaS</a>
+      <button class="btn-login" onclick="fazerLogin()">Entrar</button>
+      <a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#B0B0B0;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3F51B5'" onmouseout="this.style.color='#B0B0B0'">Saiba mais sobre o Nano-IaaS</a>
       <div class="erro-login" id="erro-login">Usuário ou senha incorretos.</div>
     </div>
   </div>
 
   <!-- TELA DO DASHBOARD -->
   <div id="tela-dashboard">
-    <header>
-      <div class="header-left">
-        <img src="logo.svg" style="width:66px;height:66px;border-radius:10px;" alt="Nano-IaaS"/>
-        <h1>Nano-IaaS Dashboard</h1>
-        <span class="badge">Multi-Cloud Explorer</span>
-      </div>
-      <a href="landing.html" style="margin-right:12px;background:#1a1535;border:1px solid #2d2050;color:#c4b5fd;font-size:12px;padding:6px 14px;border-radius:8px;text-decoration:none;transition:opacity 0.15s;">Landing Page</a><button class="btn-logout" onclick="fazerLogout()">Sair</button>
-    </header>
+    <div class="app-shell">
 
-    <div class="counters">
-      <div class="counter-card">
-        <div class="counter-icon gcp"><img src="gcp.png" width="28"></div>
-        <div>
-          <div class="counter-num" id="cnt-gcp">—</div>
-          <div class="counter-label">Google Cloud</div>
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img src="logo.svg" alt="Nano-IaaS" />
+          <div class="sidebar-brand-text">
+            <strong>Nano-IaaS</strong>
+            <span>Multi-Cloud Explorer</span>
+          </div>
         </div>
-      </div>
-      <div class="counter-card">
-        <div class="counter-icon azure"><img src="azure.png" width="28"></div>
-        <div>
-          <div class="counter-num" id="cnt-azure">—</div>
-          <div class="counter-label">Azure</div>
+
+        <button class="sidebar-link active" onclick="carregarTodos()">Dashboard</button>
+        <button class="sidebar-link" onclick="verLogs()">Auditoria</button>
+        <a class="sidebar-link" href="landing.html">Landing Page</a>
+
+        <div class="sidebar-section-label">Em breve</div>
+        <button class="sidebar-link disabled" disabled>Configurações</button>
+        <button class="sidebar-link disabled" disabled>Usuários</button>
+        <button class="sidebar-link disabled" disabled>Relatórios</button>
+
+        <button class="sidebar-link logout" onclick="fazerLogout()">Sair</button>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Visão geral dos seus recursos multi-cloud</p>
         </div>
-      </div>
-      <div class="counter-card">
-        <div class="counter-icon aws"><img src="aws.png" width="28"></div>
-        <div>
-          <div class="counter-num" id="cnt-aws">—</div>
-          <div class="counter-label">AWS</div>
+
+        <div class="counters">
+          <div class="counter-card">
+            <div class="counter-icon gcp"><img src="gcp.png" alt="GCP"></div>
+            <div>
+              <div class="counter-num" id="cnt-gcp">—</div>
+              <div class="counter-label">Google Cloud</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon azure"><img src="azure.png" alt="Azure"></div>
+            <div>
+              <div class="counter-num" id="cnt-azure">—</div>
+              <div class="counter-label">Azure</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon aws"><img src="aws.png" alt="AWS"></div>
+            <div>
+              <div class="counter-num" id="cnt-aws">—</div>
+              <div class="counter-label">AWS</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon total"><img src="Todos.png" alt="Total"></div>
+            <div>
+              <div class="counter-num" id="cnt-total">—</div>
+              <div class="counter-label">Total de recursos</div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="counter-card">
-        <div class="counter-icon total"><img src="Todos.png" width="28"></div>
-        <div>
-          <div class="counter-num" id="cnt-total">—</div>
-          <div class="counter-label">Total de recursos</div>
+
+        <div class="toolbar">
+          <button class="chip chip-gcp" onclick="carregar('gcp')"><img src="gcp.png" alt=""> Google Cloud</button>
+          <button class="chip chip-azure" onclick="carregar('azure')"><img src="azure.png" alt=""> Azure</button>
+          <button class="chip chip-aws" onclick="carregar('aws')"><img src="aws.png" alt=""> AWS</button>
+          <button class="chip chip-all" onclick="carregarTodos()"><img src="Todos.png" alt=""> Todos</button>
+          <button class="chip chip-audit" onclick="verLogs()"><img src="Auditoria.png" alt=""> Auditoria</button>
+          <div class="search-box">
+            <span class="ico-search">⌕</span>
+            <input type="text" id="input-busca" placeholder="Buscar recurso..." oninput="filtrarRecursos(this.value)" />
+          </div>
         </div>
-      </div>
+
+        <div class="status" id="status">Selecione um provider para começar.</div>
+
+        <div class="table-wrap" id="painel-recursos">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Localização / Modificado</th>
+                <th>Criado</th>
+              </tr>
+            </thead>
+            <tbody id="corpo">
+              <tr><td colspan="5" class="empty">Nenhum dado carregado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
     </div>
 
-    <div class="providers">
-      <button class="btn btn-gcp" onclick="carregar('gcp')"><img src="gcp.png" width="24"> Google Cloud</button>
-      <button class="btn btn-azure" onclick="carregar('azure')"><img src="azure.png" width="24"> Azure</button>
-      <button class="btn btn-aws" onclick="carregar('aws')"><img src="aws.png" width="24"> AWS</button>
-      <button class="btn btn-all" onclick="carregarTodos()"><img src="Todos.png" width="24"> Todos</button>
-      <button class="btn btn-audit" onclick="verLogs()"><img src="Auditoria.png" width="24"> Auditoria</button>
-    </div>
-
-    <div class="status" id="status">Selecione um provider para começar.</div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Provider</th>
-            <th>Nome</th>
-            <th>Tipo</th>
-            <th>Localização / Modificado</th>
-            <th>Criado</th>
-          </tr>
-        </thead>
-        <tbody id="corpo">
-          <tr><td colspan="5" class="empty">Nenhum dado carregado ainda.</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <footer class="app-footer">© 2026 Nano-IaaS | Multi-Cloud Explorer</footer>
   </div>
 
   <script>
     const API = 'https://web-production-87d4d.up.railway.app';
     const counts = { gcp: 0, azure: 0, aws: 0 };
     let token = null;
+    let recursosAtuais = [];
 
     function setStatus(msg, tipo) {
       const el = document.getElementById('status');
@@ -399,11 +569,10 @@
       try {
         const res = await fetch(`${API}/login`, {
           method: 'POST',
-        body: (() => { const f = new FormData(); f.append('username', usuario); f.append('password', senha); return f; })()
+          body: (() => { const f = new FormData(); f.append('username', usuario); f.append('password', senha); return f; })()
         });
 
         const data = await res.json();
-
         if (!res.ok) throw new Error(data.detail);
 
         token = data.access_token;
@@ -441,140 +610,161 @@
         counts[provider] = data.resources.length;
         atualizarContadores();
         renderizar([{ provider, resources: data.resources }]);
-        setStatus(`✅ ${data.resources.length} recursos carregados — ${provider.toUpperCase()}`, 'success');
+        setStatus(`${data.resources.length} recursos carregados — ${provider.toUpperCase()}`, 'success');
       } catch (e) {
-        setStatus(`❌ Erro: ${e.message}`, 'error');
+        setStatus(`Erro: ${e.message}`, 'error');
       }
     }
 
     async function carregarTodos() {
       setStatus('Carregando todos os providers...', 'loading');
       try {
-      const [gcp, azure, aws] = await Promise.all([
-        fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-        fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-        fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
-      ]);
-      counts.gcp = gcp.resources.length;
-      counts.azure = azure.resources.length;
-      counts.aws = aws.resources.length;
-      atualizarContadores();
-      renderizar([
-        { provider: 'gcp', resources: gcp.resources },
-        { provider: 'azure', resources: azure.resources },
-        { provider: 'aws', resources: aws.resources },
-     ]);
-     const total = gcp.resources.length + azure.resources.length + aws.resources.length;
-        setStatus(`✅ ${total} recursos carregados — GCP + Azure`, 'success');
+        const [gcp, azure, aws] = await Promise.all([
+          fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+          fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }).then(r => r.json()),
+        ]);
+        counts.gcp = gcp.resources.length;
+        counts.azure = azure.resources.length;
+        counts.aws = aws.resources.length;
+        atualizarContadores();
+        renderizar([
+          { provider: 'gcp', resources: gcp.resources },
+          { provider: 'azure', resources: azure.resources },
+          { provider: 'aws', resources: aws.resources },
+        ]);
+        const total = gcp.resources.length + azure.resources.length + aws.resources.length;
+        setStatus(`${total} recursos carregados — GCP + Azure + AWS`, 'success');
       } catch (e) {
-        setStatus(`❌ Erro: ${e.message}`, 'error');
+        setStatus(`Erro: ${e.message}`, 'error');
       }
     }
 
     function renderizar(providers) {
+      recursosAtuais = [];
+      providers.forEach(({ provider, resources }) => {
+        resources.forEach(r => recursosAtuais.push({ provider, ...r }));
+      });
+      desenharTabela(recursosAtuais);
+    }
+
+    function desenharTabela(lista) {
       const corpo = document.getElementById('corpo');
       corpo.innerHTML = '';
-      const icones = { 
-  gcp: '<img src="gcp.png" width="18" style="vertical-align:middle">',
-  azure: '<img src="azure.png" width="18" style="vertical-align:middle">',
-  aws: '<img src="aws.png" width="18" style="vertical-align:middle">'
-};
-      providers.forEach(({ provider, resources }) => {
-        resources.forEach(r => {
-          const tr = document.createElement('tr');
-          tr.style.cursor = 'pointer';
-          tr.title = 'Clique para ver os dados';
-          tr.onclick = () => lerDados(provider, r.name);
-          tr.innerHTML = `
-            <td><div class="provider-cell">
-              <span>${icones[provider]}</span>
-              <span class="provider-name">${provider.toUpperCase()}</span>
-            </div></td>
-            <td class="resource-name">${r.name} <span style="font-size:11px;color:#475569">▶ ver dados</span></td>
-            <td><span class="type-badge type-${r.type}">${r.type}</span></td>
-            <td class="date-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
-            <td class="date-cell">${formatDate(r.created) || '—'}</td>
-          `;
-          corpo.appendChild(tr);
-        });
+      const icones = {
+        gcp: '<img src="gcp.png" alt="" style="width:16px;vertical-align:middle">',
+        azure: '<img src="azure.png" alt="" style="width:16px;vertical-align:middle">',
+        aws: '<img src="aws.png" alt="" style="width:16px;vertical-align:middle">'
+      };
+
+      if (lista.length === 0) {
+        corpo.innerHTML = '<tr><td colspan="5" class="empty">Nenhum recurso encontrado.</td></tr>';
+        return;
+      }
+
+      lista.forEach(r => {
+        const provider = r.provider;
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.title = 'Clique para ver os dados';
+        tr.onclick = () => lerDados(provider, r.name);
+        tr.innerHTML = `
+          <td><div class="provider-cell">
+            <span>${icones[provider]}</span>
+            <span class="provider-name">${provider.toUpperCase()}</span>
+          </div></td>
+          <td class="resource-name">${r.name} <span style="font-size:11px;color:#6b6b6b">▶ ver dados</span></td>
+          <td><span class="type-badge type-${r.type}">${r.type}</span></td>
+          <td class="date-cell location-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
+          <td class="date-cell">${formatDate(r.created) || '—'}</td>
+        `;
+        corpo.appendChild(tr);
       });
     }
 
+    function filtrarRecursos(termo) {
+      if (!termo) { desenharTabela(recursosAtuais); return; }
+      const t = termo.toLowerCase();
+      const filtrados = recursosAtuais.filter(r => r.name.toLowerCase().includes(t));
+      desenharTabela(filtrados);
+    }
 
+    function mostrarLogs(logs, limite) {
+      limite = limite || 10;
+      const wrap = document.getElementById('painel-recursos');
+      const exibir = logs.slice(0, limite);
 
-function mostrarLogs(logs, limite) {
-  const corpo = document.getElementById('corpo');
-  corpo.innerHTML = '';
-  const headerTr = document.createElement('tr');
-  headerTr.style.background = '#0a0c10';
-  headerTr.innerHTML = `
-    <td colspan="8" style="padding:10px 20px">
-      <span style="color:#4ade80;font-size:12px"><img src="Auditoria.png" width="16" style="vertical-align:middle"> Logs de auditoria</span>
-      <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">← voltar</button>
-      <span style="margin-left:20px;font-size:12px;color:#64748b">Exibir:</span>
-      <button onclick="verLogs(10)" style="margin-left:6px;background:${limite===10?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">10</button>
-      <button onclick="verLogs(20)" style="margin-left:4px;background:${limite===20?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">20</button>
-      <button onclick="verLogs(50)" style="margin-left:4px;background:${limite===50?'#14532d':'#1e2433'};border:1px solid #2d3748;color:#4ade80;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">50</button>
-      <button onclick="downloadLogs()" style="margin-left:16px;background:#1a1535;border:1px solid #2d2050;color:#c4b5fd;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">⬇ Baixar CSV</button>
-      <button onclick="downloadSelecionados()" style="margin-left:4px;background:#1a1535;border:1px solid #2d2050;color:#c4b5fd;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">⬇ Baixar Selecionados</button>
-    </td>
-  `;
-  corpo.appendChild(headerTr);
-  const thTr = document.createElement('tr');
-  thTr.style.background = '#111520';
-  thTr.innerHTML = `
-    <th style="padding:10px 20px;font-size:11px;color:#374151"><input type="checkbox" id="select-all" onclick="toggleTodos(this)"></th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Timestamp</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Usuário</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Ação</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Provider</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Recurso</th>
-    <th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">Detalhes</th>
-  `;
-  corpo.appendChild(thTr);
-  const exibir = logs.slice(0, limite || 10);
-  exibir.forEach((log, i) => {
-    const tr = document.createElement('tr');
-    const cor = log.acao === 'READ' ? '#a5b4fc' : '#4ade80';
-    tr.innerHTML = `
-      <td style="padding:11px 20px;border-bottom:1px solid #111520"><input type="checkbox" class="log-check" data-index="${i}"></td>
-      <td style="padding:11px 20px;font-size:12px;font-family:monospace;color:#475569;border-bottom:1px solid #111520">${log.timestamp}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#e2e8f0;border-bottom:1px solid #111520">${log.usuario}</td>
-      <td style="padding:11px 20px;border-bottom:1px solid #111520"><span style="background:#1e2433;color:${cor};font-size:11px;padding:2px 8px;border-radius:4px">${log.acao}</span></td>
-      <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.provider}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${log.recurso}</td>
-      <td style="padding:11px 20px;font-size:13px;color:#64748b;border-bottom:1px solid #111520">${log.detalhes}</td>
-    `;
-    corpo.appendChild(tr);
-  });
-  window._logsAtuais = logs;
-}
-function toggleTodos(checkbox) {
-  document.querySelectorAll('.log-check').forEach(c => c.checked = checkbox.checked);
-}
-function downloadLogs() {
-  if (!window._logsAtuais) return;
-  gerarCSV(window._logsAtuais);
-}
-function downloadSelecionados() {
-  const selecionados = [];
-  document.querySelectorAll('.log-check:checked').forEach(c => {
-    selecionados.push(window._logsAtuais[parseInt(c.dataset.index)]);
-  });
-  if (selecionados.length === 0) { setStatus('⚠️ Nenhum log selecionado!', 'error'); return; }
-  gerarCSV(selecionados);
-}
-function gerarCSV(logs) {
-  const header = 'Timestamp,Usuario,Acao,Provider,Recurso,Detalhes\n';
-  const linhas = logs.map(l => `${l.timestamp},${l.usuario},${l.acao},${l.provider},${l.recurso},${l.detalhes}`).join('\n');
-  const blob = new Blob([header + linhas], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+      let html = `
+        <div style="display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid #2C2C2C;flex-wrap:wrap">
+          <span style="color:#34A853;font-size:13px;font-weight:600"><img src="Auditoria.png" width="16" style="vertical-align:middle"> Logs de auditoria</span>
+          <button onclick="carregarTodos()" class="page-btn">← voltar</button>
+          <span style="font-size:12px;color:#6b6b6b;margin-left:10px">Exibir:</span>
+          <button onclick="verLogs(10)" class="page-btn ${limite===10?'active':''}">10</button>
+          <button onclick="verLogs(20)" class="page-btn ${limite===20?'active':''}">20</button>
+          <button onclick="verLogs(50)" class="page-btn ${limite===50?'active':''}">50</button>
+          <button onclick="downloadLogs()" class="btn-csv">Baixar CSV</button>
+        </div>
+        <div class="timeline">
+      `;
+
+      const iconesProvider = { gcp: 'gcp.png', azure: 'azure.png', aws: 'aws.png' };
+
+      exibir.forEach(log => {
+        const prov = (log.provider || '').toLowerCase();
+        const img = iconesProvider[prov] || 'Todos.png';
+        html += `
+          <div class="timeline-item">
+            <div class="timeline-icon ${prov}"><img src="${img}" alt=""></div>
+            <div class="timeline-body">
+              <div class="timeline-top">
+                <span class="timeline-action">${log.acao}</span>
+                <span class="timeline-time">${log.timestamp}</span>
+              </div>
+              <div class="timeline-desc"><strong>${log.usuario}</strong> acessou <strong>${log.recurso}</strong> via ${log.provider}</div>
+              <div class="timeline-meta">${log.detalhes || ''}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      wrap.innerHTML = html;
+      window._logsAtuais = logs;
+    }
+
+    function downloadLogs() {
+      if (!window._logsAtuais) return;
+      gerarCSV(window._logsAtuais);
+    }
+
+    function gerarCSV(logs) {
+      const header = 'Timestamp,Usuario,Acao,Provider,Recurso,Detalhes\n';
+      const linhas = logs.map(l => `${l.timestamp},${l.usuario},${l.acao},${l.provider},${l.recurso},${l.detalhes}`).join('\n');
+      const blob = new Blob([header + linhas], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function verLogs(limite) {
+      limite = limite || 10;
+      setStatus('Carregando logs de auditoria...', 'loading');
+      try {
+        const res = await fetch(`${API}/audit`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        mostrarLogs(data.logs, limite);
+        setStatus(`${Math.min(limite, data.logs.length)} registros de auditoria`, 'success');
+      } catch (e) {
+        setStatus(`Erro: ${e.message}`, 'error');
+      }
+    }
+
     async function lerDados(provider, bucket) {
       setStatus(`Lendo dados de ${bucket}...`, 'loading');
       try {
@@ -584,68 +774,47 @@ function gerarCSV(logs) {
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         if (!data.records || data.records.length === 0) {
-          setStatus(`⚠️ Nenhum dado encontrado em ${bucket}`, 'error');
+          setStatus(`Nenhum dado encontrado em ${bucket}`, 'error');
           return;
         }
         mostrarDados(provider, bucket, data.records);
-        setStatus(`✅ ${data.records.length} registros carregados de ${bucket}`, 'success');
+        setStatus(`${data.records.length} registros carregados de ${bucket}`, 'success');
       } catch (e) {
-        setStatus(`❌ Erro: ${e.message}`, 'error');
+        setStatus(`Erro: ${e.message}`, 'error');
       }
     }
 
     function mostrarDados(provider, bucket, records) {
-      const corpo = document.getElementById('corpo');
-      corpo.innerHTML = '';
-      const icones = { gcp: '🔵', azure: '🔷', aws: '🟠' };
+      const wrap = document.getElementById('painel-recursos');
+      const icones = {
+        gcp: '<img src="gcp.png" alt="" style="width:16px;vertical-align:middle">',
+        azure: '<img src="azure.png" alt="" style="width:16px;vertical-align:middle">',
+        aws: '<img src="aws.png" alt="" style="width:16px;vertical-align:middle">'
+      };
       const colunas = Object.keys(records[0]).filter(k => !k.startsWith('_'));
 
-      const headerTr = document.createElement('tr');
-      headerTr.style.background = '#0a0c10';
-      headerTr.innerHTML = `
-        <td colspan="${colunas.length + 1}" style="padding:10px 20px">
-          <span style="color:#64748b;font-size:12px">
-            ${icones[provider]} ${provider.toUpperCase()} › ${bucket}
-          </span>
-          <button onclick="carregarTodos()" style="margin-left:12px;background:#1e2433;border:1px solid #2d3748;color:#94a3b8;font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer">
-            ← voltar
-          </button>
-        </td>
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <td colspan="${colunas.length}" style="padding:14px 22px;background:#181818">
+                <span style="color:#B0B0B0;font-size:13px;font-weight:600">
+                  ${icones[provider]} ${provider.toUpperCase()} › ${bucket}
+                </span>
+                <button onclick="carregarTodos()" class="page-btn" style="margin-left:14px">← voltar</button>
+              </td>
+            </tr>
+            <tr>${colunas.map(c => `<th>${c}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
       `;
-      corpo.appendChild(headerTr);
-
-      const thTr = document.createElement('tr');
-      thTr.style.background = '#111520';
-      thTr.innerHTML = colunas.map(c =>
-        `<th style="padding:10px 20px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#374151">${c}</th>`
-      ).join('');
-      corpo.appendChild(thTr);
-
       records.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = colunas.map(c =>
-          `<td style="padding:12px 20px;font-size:13px;color:#94a3b8;border-bottom:1px solid #111520">${r[c] ?? '—'}</td>`
-        ).join('');
-        corpo.appendChild(tr);
+        html += '<tr>' + colunas.map(c => `<td>${r[c] ?? '—'}</td>`).join('') + '</tr>';
       });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
     }
-  
-async function verLogs(limite) {
-  limite = limite || 10;
-  setStatus('Carregando logs de auditoria...', 'loading');
-  try {
-    const res = await fetch(`${API}/audit`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    mostrarLogs(data.logs, limite);
-    setStatus(`✅ ${Math.min(limite, data.logs.length)} registros de auditoria`, 'success');
-  } catch (e) {
-    setStatus(`❌ Erro: ${e.message}`, 'error');
-  }
-}
-</script>
+  </script>
 
 </body>
 </html>
