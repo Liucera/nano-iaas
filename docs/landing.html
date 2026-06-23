@@ -13,14 +13,10 @@
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 40px 20px;
-      background-color: #050d1a;
-      background-image: url('logo.svg');
-      background-size: 90px 90px;
-      background-repeat: repeat;
-      background-position: 0 0;
+      background: #050d1a;
       position: relative;
     }
-    .hero::before { content: ""; position: absolute; inset: 0; background: rgba(5,13,26,0.92); }
+    .hero::before { content: ""; position: absolute; inset: 0; background: rgba(5,13,26,0.78); }
     .hero-content { position: relative; z-index: 1; }
     .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -2px; margin-bottom: 16px; }
     .hero h1 span { color: #3b82f6; }
@@ -56,11 +52,11 @@
 
     .clouds { display: flex; gap: 12px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap; }
     .cloud-badge {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      display: flex; align-items: center; gap: 8px;
       background: #0d1117; border: 1px solid #1e2433;
-      padding: 8px 16px; border-radius: 36px; font-size: 13px; color: #64748b;
+      padding: 8px 16px; border-radius: 20px; font-size: 13px; color: #64748b;
     }
-    .cloud-badge img { width: 36px; }
+    .cloud-badge img { width: 20px; }
 
     section { padding: 80px 20px; max-width: 1100px; margin: 0 auto; }
     .section-title { font-size: 36px; font-weight: 700; text-align: center; margin-bottom: 12px; }
@@ -105,33 +101,50 @@
     /* PRECOS */
     .precos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
     .preco-card {
-      background: #0d1117; border: 1px solid #1e2433;
+      background: #0d1117; border: 2px solid #1e2433;
       border-radius: 16px; padding: 36px; text-align: center;
-      position: relative; transition: border-color 0.2s;
+      position: relative; transition: border-color 0.2s, transform 0.2s;
     }
-    .preco-card:hover { border-color: #3b82f6; }
-    .preco-card.destaque { border-color: #3b82f6; }
+    .preco-card:hover { transform: translateY(-4px); }
+    .preco-card.free { border-color: #374151; }
+    .preco-card.pleno { border-color: #3b82f6; }
+    .preco-card.enterprise { border-color: #b45309; }
     .badge-destaque {
       position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
       background: linear-gradient(135deg, #3b82f6, #8b5cf6);
       color: #fff; font-size: 11px; font-weight: 600;
       padding: 4px 16px; border-radius: 20px;
     }
-    .preco-nome { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #94a3b8; }
-    .preco-valor { font-size: 48px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
-    .preco-valor span { font-size: 18px; color: #64748b; font-weight: 400; }
+    .preco-nome { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .preco-card.free .preco-nome { color: #9ca3af; }
+    .preco-card.pleno .preco-nome { color: #93c5fd; }
+    .preco-card.enterprise .preco-nome { color: #fbbf24; }
+    .preco-valor { font-size: 38px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
+    .preco-valor span { font-size: 15px; color: #64748b; font-weight: 400; }
     .preco-desc { font-size: 13px; color: #475569; margin-bottom: 28px; }
     .preco-lista { list-style: none; text-align: left; margin-bottom: 28px; }
-    .preco-lista li { font-size: 14px; color: #94a3b8; padding: 6px 0; border-bottom: 1px solid #111520; }
-    .preco-lista li::before { content: "✓ "; color: #10b981; font-weight: 700; }
+    .preco-lista li { font-size: 13px; color: #94a3b8; padding: 7px 0; border-bottom: 1px solid #111520; }
+    .preco-lista li.no::before { content: "✕ "; color: #ef4444; font-weight: 700; }
+    .preco-lista li.yes::before { content: "✓ "; font-weight: 700; }
+    .preco-card.free li.yes::before { color: #9ca3af; }
+    .preco-card.pleno li.yes::before { color: #3b82f6; }
+    .preco-card.enterprise li.yes::before { color: #fbbf24; }
     .btn-plano {
       display: block; width: 100%; background: #1e2433; color: #e2e8f0;
       padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
-      text-decoration: none; transition: background 0.2s;
+      text-decoration: none; transition: background 0.2s; border: none; cursor: pointer;
     }
     .btn-plano:hover { background: #2d3748; }
     .btn-plano.primary { background: #3b82f6; color: #fff; }
     .btn-plano.primary:hover { background: #2563eb; }
+    .btn-plano.gold { background: linear-gradient(135deg, #b45309, #fbbf24); color: #1a1206; }
+    .btn-plano.gold:hover { opacity: 0.9; }
+    .pitch-institucional {
+      max-width: 760px; margin: 0 auto; text-align: center; padding: 60px 20px;
+    }
+    .pitch-institucional h3 { font-size: 22px; color: #f1f5f9; margin-bottom: 14px; }
+    .pitch-institucional p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 18px; }
+    .pitch-institucional .destaque-cta { color: #fbbf24; font-weight: 600; }
 
     /* CTA */
     .cta {
@@ -158,12 +171,13 @@
   <div class="hero">
     <div class="hero-content">
       <div class="clouds">
-       <div class="cloud-badge"><img src="aws.png" alt="AWS"> AWS</div>
-       <div class="cloud-badge"><img src="gcp.png" alt="GCP"> Google Cloud Platform</div>
-       <div class="cloud-badge"><img src="azure.png" alt="Azure"> Microsoft Azure</div>
+        <div class="cloud-badge"><img src="aws.png" alt="AWS"> AWS</div>
+        <div class="cloud-badge"><img src="gcp.png" alt="GCP"> Google Cloud Platform</div>
+        <div class="cloud-badge"><img src="azure.png" alt="Azure"> Microsoft Azure</div>
       </div>
       <h1>Nano<span>-IaaS</span></h1>
-      <p>Dashboard multi-cloud para leitura e auditoria de dados. Acesse AWS, GCP e Azure em uma unica interface segura.</p>
+      <p style="font-size:15px;color:#3b82f6;font-weight:600;letter-spacing:0.3px;margin-bottom:8px">O primeiro explorador multicloud em português</p>
+      <p>Conecte AWS, Azure e GCP em um só painel. Leia, audite e automatize com Terraform, sem complicação.</p>
       <div class="hero-btns">
         <a href="index.html" class="btn-dashboard">Acessar Dashboard</a>
         <a href="https://github.com/Liucera/nano-iaas" class="btn-github" target="_blank">
@@ -181,17 +195,14 @@
       <p class="section-sub">Gerenciar dados em multiplas clouds e caro, complexo e arriscado</p>
       <div class="problema-grid">
         <div class="problema-card">
-          
           <h3>3 consoles diferentes</h3>
           <p>Sua equipe perde horas navegando entre AWS, GCP e Azure para encontrar dados simples.</p>
         </div>
         <div class="problema-card">
-          
           <h3>Credenciais expostas</h3>
           <p>Cada analista precisa de acesso direto as clouds, aumentando o risco de vazamento.</p>
         </div>
         <div class="problema-card">
-          
           <h3>Sem rastreabilidade</h3>
           <p>Voce nao sabe quem acessou quais dados e quando. Compliance impossivel.</p>
         </div>
@@ -205,32 +216,26 @@
     <p class="section-sub">Uma plataforma completa para leitura e auditoria multi-cloud</p>
     <div class="features-grid">
       <div class="feature-card">
-        
         <h3>Multi-cloud unificado</h3>
         <p>AWS S3, Google Cloud Storage e Azure Blob em uma unica interface. Sem trocar de aba.</p>
       </div>
       <div class="feature-card">
-        
         <h3>Read-only by design</h3>
         <p>Nenhuma operacao de escrita ou delecao e permitida. Seus dados estao sempre seguros.</p>
       </div>
       <div class="feature-card">
-        
         <h3>Auditoria completa</h3>
         <p>Registro de quem acessou o que e quando. Exportacao em CSV com filtros avancados.</p>
       </div>
       <div class="feature-card">
-        
         <h3>Login seguro com JWT</h3>
         <p>Autenticacao com token de acesso. Seus analistas nunca tocam nas credenciais das clouds.</p>
       </div>
       <div class="feature-card">
-        
         <h3>Leitura de dados</h3>
         <p>Suporte a JSON, JSONL, CSV e LOG. Visualize os dados diretamente no browser.</p>
       </div>
       <div class="feature-card">
-        
         <h3>Deploy na nuvem</h3>
         <p>Acesse de qualquer lugar com HTTPS. Backend no Railway, frontend no GitHub Pages.</p>
       </div>
@@ -244,19 +249,15 @@
       <p class="section-sub">Defesa em profundidade - multiplas barreiras de protecao</p>
       <div class="seg-grid">
         <div class="seg-item">
-          
           <div><h4>JWT Token</h4><p>Sem token valido, sem acesso. Expira automaticamente.</p></div>
         </div>
         <div class="seg-item">
-          
           <div><h4>CORS restrito</h4><p>So seu dominio pode chamar a API.</p></div>
         </div>
         <div class="seg-item">
-          
           <div><h4>HTTPS</h4><p>Comunicacao criptografada de ponta a ponta.</p></div>
         </div>
         <div class="seg-item">
-          
           <div><h4>Read-only</h4><p>Impossivel apagar ou modificar dados.</p></div>
         </div>
       </div>
@@ -268,59 +269,79 @@
     <h2 class="section-title">Planos e precos</h2>
     <p class="section-sub">Comece gratis. Escale quando precisar.</p>
     <div class="precos-grid">
-      <div class="preco-card">
+      <div class="preco-card free">
         <div class="preco-nome">Free</div>
         <div class="preco-valor">R$ 0<span>/mes</span></div>
         <div class="preco-desc">Para explorar e testar</div>
         <ul class="preco-lista">
-          <li>1 usuario</li>
-          <li>3 providers mock</li>
-          <li>100 logs de auditoria</li>
-          <li>Dashboard web</li>
-          <li>Suporte via GitHub</li>
+          <li class="yes">Dashboard multicloud basico</li>
+          <li class="yes">Limite de 5 recursos por provedor</li>
+          <li class="yes">Auditoria dos ultimos 7 dias</li>
+          <li class="no">Integracao com Terraform</li>
+          <li class="yes">1 conta de usuario</li>
+          <li class="yes">Suporte via comunidade</li>
+          <li class="yes">Seguranca JWT</li>
         </ul>
-        <a href="index.html" class="btn-plano">Comecar gratis</a>
+        <a href="index.html" class="btn-plano">Começar grátis</a>
       </div>
-      <div class="preco-card destaque">
+      <div class="preco-card pleno">
         <div class="badge-destaque">Mais popular</div>
-        <div class="preco-nome">Pro</div>
-        <div class="preco-valor">R$ 299<span>/mes</span></div>
-        <div class="preco-desc">Para times de dados</div>
+        <div class="preco-nome">Pleno</div>
+        <div class="preco-valor">R$ 49–99<span>/mes</span></div>
+        <div class="preco-desc">Para PMEs e times de dados</div>
         <ul class="preco-lista">
-          <li>Ate 10 usuarios</li>
-          <li>AWS, GCP e Azure reais</li>
-          <li>Logs ilimitados</li>
-          <li>Export CSV avancado</li>
-          <li>Suporte prioritario</li>
+          <li class="yes">Dashboard multicloud completo</li>
+          <li class="yes">Recursos ilimitados por provedor</li>
+          <li class="yes">Auditoria completa + export CSV/JSON</li>
+          <li class="yes">Integracao basica com Terraform</li>
+          <li class="yes">Ate 5 contas de usuario</li>
+          <li class="yes">Suporte via e-mail padrao</li>
+          <li class="yes">Seguranca JWT</li>
         </ul>
-        <a href="index.html" class="btn-plano primary">Assinar Pro</a>
+        <a href="index.html" class="btn-plano primary">Assinar agora</a>
       </div>
-      <div class="preco-card">
+      <div class="preco-card enterprise">
         <div class="preco-nome">Enterprise</div>
-        <div class="preco-valor">Custom</div>
+        <div class="preco-valor">R$ 499–999<span>/mes</span></div>
         <div class="preco-desc">Para grandes empresas</div>
         <ul class="preco-lista">
-          <li>Usuarios ilimitados</li>
-          <li>Multi-tenant</li>
-          <li>Relatorios de compliance</li>
-          <li>Deploy on-premise</li>
-          <li>SLA garantido</li>
+          <li class="yes">Dashboard multicloud completo</li>
+          <li class="yes">Recursos ilimitados por provedor</li>
+          <li class="yes">Auditoria avancada + relatorios detalhados</li>
+          <li class="yes">Terraform avancado + customizacao</li>
+          <li class="yes">Usuarios ilimitados</li>
+          <li class="yes">Suporte dedicado + SLA</li>
+          <li class="yes">JWT + integracao com IAM corporativo</li>
         </ul>
-        <a href="mailto:contato@nano-iaas.com" class="btn-plano">Falar com vendas</a>
+        <a href="mailto:contato@nano-iaas.com" class="btn-plano gold">Fale conosco</a>
       </div>
     </div>
   </section>
 
+  <!-- PITCH INSTITUCIONAL -->
+  <div class="seguranca">
+    <div class="pitch-institucional">
+      <h3>Nano-IaaS — Governança multicloud simples, segura e automatizada</h3>
+      <p>Empresas brasileiras enfrentam o desafio de gerenciar múltiplos provedores de nuvem. O Nano-IaaS centraliza AWS, Azure e GCP em um único painel, com auditoria transparente e automação via Terraform — uma solução pioneira em português, desenhada para reduzir custos, aumentar a segurança e simplificar a governança.</p>
+      <p>
+        <strong style="color:#e2e8f0">Segurança:</strong> acesso read-only com autenticação JWT e integração futura com IAM corporativo.<br>
+        <strong style="color:#e2e8f0">Auditoria:</strong> relatórios detalhados exportáveis, timeline de acessos e conformidade regulatória.<br>
+        <strong style="color:#e2e8f0">Automação:</strong> Terraform integrado para provisionamento e gestão de recursos multicloud.<br>
+        <strong style="color:#e2e8f0">Escalabilidade:</strong> planos flexíveis que atendem desde startups até grandes corporações.
+      </p>
+      <p class="destaque-cta">Invista em governança multicloud acessível. O Nano-IaaS é a ponte entre simplicidade e segurança.</p>
+    </div>
+  </div>
+
   <!-- CTA -->
   <div class="cta">
     <h2>Pronto para comecar?</h2>
-    <p>Acesse o dashboard agora e veja seus dados multi-cloud em um so lugar.</p>
+    <p>Comece grátis hoje e descubra como simplificar sua nuvem.</p>
     <a href="index.html" class="btn-dashboard">Acessar o Dashboard</a>
   </div>
 
   <footer>
     <p>Nano-IaaS 2026 - Desenvolvido por <a href="https://github.com/Liucera">Arlindo Barroso</a> &middot;
-    
     <a href="https://github.com/Liucera/nano-iaas">GitHub</a></p>
   </footer>
 
