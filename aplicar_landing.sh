@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+cat > docs/landing.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -107,8 +110,8 @@
     }
     .preco-card:hover { transform: translateY(-4px); }
     .preco-card.free { border-color: #374151; }
-    .preco-card.popular { border-color: #3b82f6; }
-    .preco-card.premium { border-color: #b45309; }
+    .preco-card.pleno { border-color: #3b82f6; }
+    .preco-card.enterprise { border-color: #b45309; }
     .badge-destaque {
       position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
       background: linear-gradient(135deg, #3b82f6, #8b5cf6);
@@ -117,8 +120,8 @@
     }
     .preco-nome { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
     .preco-card.free .preco-nome { color: #9ca3af; }
-    .preco-card.popular .preco-nome { color: #93c5fd; }
-    .preco-card.premium .preco-nome { color: #fbbf24; }
+    .preco-card.pleno .preco-nome { color: #93c5fd; }
+    .preco-card.enterprise .preco-nome { color: #fbbf24; }
     .preco-valor { font-size: 38px; font-weight: 800; color: #f1f5f9; margin-bottom: 4px; }
     .preco-valor span { font-size: 15px; color: #64748b; font-weight: 400; }
     .preco-desc { font-size: 13px; color: #475569; margin-bottom: 28px; }
@@ -127,8 +130,8 @@
     .preco-lista li.no::before { content: "✕ "; color: #ef4444; font-weight: 700; }
     .preco-lista li.yes::before { content: "✓ "; font-weight: 700; }
     .preco-card.free li.yes::before { color: #9ca3af; }
-    .preco-card.popular li.yes::before { color: #3b82f6; }
-    .preco-card.premium li.yes::before { color: #fbbf24; }
+    .preco-card.pleno li.yes::before { color: #3b82f6; }
+    .preco-card.enterprise li.yes::before { color: #fbbf24; }
     .btn-plano {
       display: block; width: 100%; background: #1e2433; color: #e2e8f0;
       padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
@@ -270,8 +273,8 @@
     <p class="section-sub">Comece gratis. Escale quando precisar.</p>
     <div class="precos-grid">
       <div class="preco-card free">
-        <div class="preco-nome">Gratuito</div>
-        <div class="preco-valor">R$ 0<span>/mês</span></div>
+        <div class="preco-nome">Free</div>
+        <div class="preco-valor">R$ 0<span>/mes</span></div>
         <div class="preco-desc">Para explorar e testar</div>
         <ul class="preco-lista">
           <li class="yes">Dashboard multicloud basico</li>
@@ -286,8 +289,8 @@
       </div>
       <div class="preco-card pleno">
         <div class="badge-destaque">Mais popular</div>
-        <div class="preco-nome">Popular</div>
-        <div class="preco-valor">R$ 100<span>/mês</span></div>
+        <div class="preco-nome">Pleno</div>
+        <div class="preco-valor">R$ 49–99<span>/mes</span></div>
         <div class="preco-desc">Para PMEs e times de dados</div>
         <ul class="preco-lista">
           <li class="yes">Dashboard multicloud completo</li>
@@ -301,8 +304,8 @@
         <a href="index.html" class="btn-plano primary">Assinar agora</a>
       </div>
       <div class="preco-card enterprise">
-        <div class="preco-nome">Premium</div>
-        <div class="preco-valor">R$ 1.000<span>/mês</span></div>
+        <div class="preco-nome">Enterprise</div>
+        <div class="preco-valor">R$ 499–999<span>/mes</span></div>
         <div class="preco-desc">Para grandes empresas</div>
         <ul class="preco-lista">
           <li class="yes">Dashboard multicloud completo</li>
@@ -347,3 +350,5 @@
 
 </body>
 </html>
+HTMLEOF
+echo "landing.html atualizada com novos planos Free/Pleno/Enterprise!"

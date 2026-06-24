@@ -1,0 +1,855 @@
+#!/bin/bash
+set -e
+cat > docs/index.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nano-IaaS Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #E0E0E0;
+      min-height: 100vh;
+    }
+
+    /* ── LOGIN ── */
+    #tela-login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #050d1a;
+      background-image: url('logo.svg');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 1440px;
+      position: relative;
+    }
+
+    #tela-login::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 13, 26, 0.82);
+    }
+
+    .login-box {
+      position: relative;
+      z-index: 1;
+      background: rgba(13, 17, 23, 0.8);
+      border: 1px solid #2C2C2C;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .login-box h2 {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+
+    .login-box p {
+      text-align: center;
+      font-size: 13px;
+      color: #B0B0B0;
+      margin-bottom: 28px;
+    }
+
+    .campo { margin-bottom: 16px; }
+
+    .campo label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #B0B0B0;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .campo input {
+      width: 100%;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      color: #E0E0E0;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+
+    .campo input:focus { border-color: #3F51B5; }
+
+    .btn-login {
+      width: 100%;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s;
+      font-family: inherit;
+    }
+
+    .btn-login:hover { opacity: 0.9; }
+
+    .erro-login {
+      background: #1f0a0a;
+      border: 1px solid #7f1d1d;
+      color: #ef4444;
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-top: 14px;
+      display: none;
+    }
+
+    /* ── DASHBOARD LAYOUT ── */
+    #tela-dashboard {
+      display: none;
+      min-height: 100vh;
+    }
+
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      background: #1E1E1E;
+      border-right: 1px solid #2C2C2C;
+      padding: 28px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 8px;
+      margin-bottom: 36px;
+    }
+
+    .sidebar-brand img { width: 38px; height: 38px; border-radius: 8px; }
+    .sidebar-brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .sidebar-brand-text strong { font-size: 14px; color: #f1f5f9; font-weight: 700; }
+    .sidebar-brand-text span { font-size: 11px; color: #B0B0B0; }
+
+    .sidebar-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b6b6b;
+      font-weight: 600;
+      margin: 18px 8px 8px;
+    }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #B0B0B0;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .sidebar-link img { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .sidebar-link:hover { background: #2A2A2A; color: #E0E0E0; }
+    .sidebar-link.active { background: #2A2A2A; color: #BB86FC; border-color: #3F51B5; }
+
+    .sidebar-link.disabled { opacity: 0.4; cursor: not-allowed; }
+    .sidebar-link.disabled:hover { background: transparent; color: #B0B0B0; }
+
+    .sidebar-link.logout { color: #E53935; margin-top: auto; }
+    .sidebar-link.logout:hover { background: #2a1414; color: #f87171; }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      flex: 1;
+      padding: 36px 44px;
+      max-width: 1400px;
+    }
+
+    .page-header { margin-bottom: 36px; }
+    .page-header h1 { font-size: 24px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .page-header p { font-size: 13px; color: #B0B0B0; }
+
+    .counters {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px;
+      margin-bottom: 36px;
+    }
+
+    .counter-card {
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 14px;
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .counter-card:hover { border-color: #3F51B5; }
+
+    .counter-icon {
+      width: 46px; height: 46px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .counter-icon img { width: 26px; }
+
+    .counter-icon.gcp   { background: rgba(52, 168, 83, 0.15); border: 1px solid #34A853; }
+    .counter-icon.azure { background: rgba(0, 120, 212, 0.15); border: 1px solid #0078D4; }
+    .counter-icon.total { background: rgba(187, 134, 252, 0.15); border: 1px solid #BB86FC; }
+    .counter-icon.aws   { background: rgba(255, 153, 0, 0.15); border: 1px solid #FF9900; }
+
+    .counter-num   { font-size: 26px; font-weight: 800; color: #f1f5f9; line-height: 1.1; }
+    .counter-label { font-size: 12px; color: #B0B0B0; margin-top: 4px; }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 18px;
+      border: 1px solid;
+      border-radius: 999px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      font-family: inherit;
+      background: #1E1E1E;
+    }
+    .chip img { width: 16px; }
+
+    .chip-gcp   { color: #34A853; border-color: #34A853; }
+    .chip-gcp:hover { background: rgba(52, 168, 83, 0.12); }
+    .chip-azure { color: #0078D4; border-color: #0078D4; }
+    .chip-azure:hover { background: rgba(0, 120, 212, 0.12); }
+    .chip-aws { color: #FF9900; border-color: #FF9900; }
+    .chip-aws:hover { background: rgba(255, 153, 0, 0.12); }
+    .chip-all   { color: #B0B0B0; border-color: #2C2C2C; }
+    .chip-all:hover { background: #2A2A2A; }
+    .chip-audit { color: #BB86FC; border-color: #BB86FC; }
+    .chip-audit:hover { background: rgba(187, 134, 252, 0.12); }
+
+    .search-box {
+      margin-left: auto;
+      position: relative;
+      min-width: 240px;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 999px;
+      padding: 9px 16px 9px 36px;
+      font-size: 13px;
+      color: #E0E0E0;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .search-box input:focus { border-color: #3F51B5; }
+    .search-box .ico-search {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: #6b6b6b; font-size: 13px; pointer-events: none;
+    }
+
+    .status {
+      font-size: 13px; color: #B0B0B0;
+      margin-bottom: 18px; min-height: 18px;
+    }
+    .status.loading { color: #FF9900; }
+    .status.success { color: #34A853; }
+    .status.error   { color: #E53935; }
+
+    .table-wrap {
+      background: #1E1E1E;
+      border: 1px solid #2C2C2C;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #181818; }
+
+    th {
+      text-align: left; padding: 13px 22px;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: #6b6b6b; border-bottom: 1px solid #2C2C2C;
+    }
+
+    td {
+      padding: 14px 22px; font-size: 13px;
+      color: #B0B0B0; border-bottom: 1px solid #2C2C2C;
+    }
+
+    tbody tr:nth-child(odd) { background: #1E1E1E; }
+    tbody tr:nth-child(even) { background: #181818; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #2A2A2A; color: #E0E0E0; }
+
+    .provider-cell { display: flex; align-items: center; gap: 8px; }
+    .provider-cell img { width: 16px; }
+    .provider-name { font-size: 12px; font-weight: 700; color: #B0B0B0; }
+
+    .type-badge {
+      display: inline-block; padding: 3px 12px;
+      border-radius: 999px; font-size: 11px; font-weight: 600;
+    }
+    .type-bucket    { background: rgba(52, 168, 83, 0.15); color: #34A853; border: 1px solid #34A853; }
+    .type-container { background: rgba(0, 120, 212, 0.15); color: #0078D4; border: 1px solid #0078D4; }
+
+    .resource-name { color: #E0E0E0; font-weight: 600; }
+    .date-cell { font-family: monospace; font-size: 12px; color: #6b6b6b; }
+    .location-cell { color: #9ca3af; }
+
+    .empty { text-align: center; padding: 70px; color: #2C2C2C; font-size: 14px; }
+
+    /* ── PAGINACAO / DOWNLOAD ── */
+    .table-footer {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 24px; flex-wrap: wrap;
+    }
+    .table-footer span { font-size: 12px; color: #6b6b6b; }
+    .page-btn {
+      background: #1E1E1E; border: 1px solid #2C2C2C; color: #B0B0B0;
+      font-size: 11px; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .page-btn.active { background: rgba(52, 168, 83, 0.15); color: #34A853; border-color: #34A853; }
+    .page-btn:hover { border-color: #3F51B5; }
+    .btn-csv {
+      background: #1E1E1E; border: 1px solid #BB86FC; color: #BB86FC;
+      font-size: 11px; padding: 4px 14px; border-radius: 6px; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
+    }
+    .btn-csv:hover { opacity: 0.8; }
+
+    /* ── TIMELINE DE AUDITORIA ── */
+    .timeline { padding: 28px 32px; }
+    .timeline-item {
+      display: flex; gap: 16px; padding-bottom: 26px;
+      position: relative;
+    }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: 17px; top: 36px; bottom: 0;
+      width: 1px; background: #2C2C2C;
+    }
+    .timeline-item:last-child::before { display: none; }
+
+    .timeline-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; z-index: 1;
+      border: 1px solid;
+    }
+    .timeline-icon img { width: 18px; }
+    .timeline-icon.gcp   { border-color: #34A853; background: rgba(52, 168, 83, 0.12); }
+    .timeline-icon.azure { border-color: #0078D4; background: rgba(0, 120, 212, 0.12); }
+    .timeline-icon.aws   { border-color: #FF9900; background: rgba(255, 153, 0, 0.12); }
+
+    .timeline-body { flex: 1; padding-top: 2px; }
+    .timeline-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+    .timeline-action {
+      font-size: 12px; font-weight: 700; padding: 2px 10px;
+      border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
+      background: #1E1E1E; border: 1px solid #2C2C2C; color: #B0B0B0;
+    }
+    .timeline-time { font-size: 11px; font-family: monospace; color: #6b6b6b; }
+    .timeline-desc { font-size: 13px; color: #B0B0B0; }
+    .timeline-desc strong { color: #E0E0E0; font-weight: 600; }
+    .timeline-meta { font-size: 12px; color: #6b6b6b; margin-top: 4px; }
+
+    footer.app-footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: #B0B0B0;
+      background: #121212;
+      border-top: 1px solid #2C2C2C;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TELA DE LOGIN -->
+  <div id="tela-login">
+    <div class="login-box">
+      <h2>Nano-IaaS</h2>
+      <p>Faça login para acessar o dashboard</p>
+
+      <div class="campo">
+        <label for="input-usuario">Usuário</label>
+        <input type="text" id="input-usuario" placeholder="admin" />
+      </div>
+
+      <div class="campo">
+        <label for="input-senha">Senha</label>
+        <input type="password" id="input-senha" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter') fazerLogin()" />
+      </div>
+
+      <button class="btn-login" onclick="fazerLogin()">Entrar</button>
+      <a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#B0B0B0;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3F51B5'" onmouseout="this.style.color='#B0B0B0'">Saiba mais sobre o Nano-IaaS</a>
+      <div class="erro-login" id="erro-login">Usuário ou senha incorretos.</div>
+    </div>
+  </div>
+
+  <!-- TELA DO DASHBOARD -->
+  <div id="tela-dashboard">
+    <div class="app-shell">
+
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img src="logo.svg" alt="Nano-IaaS" />
+          <div class="sidebar-brand-text">
+            <strong>Nano-IaaS</strong>
+            <span>Multi-Cloud Explorer</span>
+          </div>
+        </div>
+
+        <button class="sidebar-link active" onclick="carregarTodos()">Dashboard</button>
+        <button class="sidebar-link" onclick="verLogs()">Auditoria</button>
+        <a class="sidebar-link" href="landing.html">Landing Page</a>
+
+        <div class="sidebar-section-label">Em breve</div>
+        <button class="sidebar-link disabled" disabled>Configurações</button>
+        <button class="sidebar-link disabled" disabled>Usuários</button>
+        <button class="sidebar-link disabled" disabled>Relatórios</button>
+
+        <button class="sidebar-link logout" onclick="fazerLogout()">Sair</button>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="main-content">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p>Visão geral dos seus recursos multi-cloud</p>
+        </div>
+
+        <div class="counters">
+          <div class="counter-card">
+            <div class="counter-icon gcp"><img src="gcp.png" alt="GCP"></div>
+            <div>
+              <div class="counter-num" id="cnt-gcp">—</div>
+              <div class="counter-label">Google Cloud</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon azure"><img src="azure.png" alt="Azure"></div>
+            <div>
+              <div class="counter-num" id="cnt-azure">—</div>
+              <div class="counter-label">Azure</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon aws"><img src="aws.png" alt="AWS"></div>
+            <div>
+              <div class="counter-num" id="cnt-aws">—</div>
+              <div class="counter-label">AWS</div>
+            </div>
+          </div>
+          <div class="counter-card">
+            <div class="counter-icon total"><img src="Todos.png" alt="Total"></div>
+            <div>
+              <div class="counter-num" id="cnt-total">—</div>
+              <div class="counter-label">Total de recursos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <button class="chip chip-gcp" onclick="carregar('gcp')"><img src="gcp.png" alt=""> Google Cloud</button>
+          <button class="chip chip-azure" onclick="carregar('azure')"><img src="azure.png" alt=""> Azure</button>
+          <button class="chip chip-aws" onclick="carregar('aws')"><img src="aws.png" alt=""> AWS</button>
+          <button class="chip chip-all" onclick="carregarTodos()"><img src="Todos.png" alt=""> Todos</button>
+          <button class="chip chip-audit" onclick="verLogs()"><img src="Auditoria.png" alt=""> Auditoria</button>
+          <div class="search-box">
+            <span class="ico-search">⌕</span>
+            <input type="text" id="input-busca" placeholder="Buscar recurso..." oninput="filtrarRecursos(this.value)" />
+          </div>
+        </div>
+
+        <div class="status" id="status">Selecione um provider para começar.</div>
+
+        <div class="table-wrap" id="painel-recursos">
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Localização / Modificado</th>
+                <th>Criado</th>
+              </tr>
+            </thead>
+            <tbody id="corpo">
+              <tr><td colspan="5" class="empty">Nenhum dado carregado ainda.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <footer class="app-footer">© 2026 Nano-IaaS | Multi-Cloud Explorer</footer>
+  </div>
+
+  <script>
+    const API = 'https://web-production-87d4d.up.railway.app';
+    const counts = { gcp: 0, azure: 0, aws: 0 };
+    let token = sessionStorage.getItem('nano_iaas_token');
+    let recursosAtuais = [];
+
+    if (token) {
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('tela-dashboard').style.display = 'block';
+        carregarTodos();
+      });
+    }
+
+    function setStatus(msg, tipo) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status ' + (tipo || '');
+    }
+
+    function formatDate(str) {
+      if (!str || str === '—') return '—';
+      try {
+        return new Date(str).toLocaleDateString('pt-BR', {
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+      } catch { return str; }
+    }
+
+    async function fazerLogin() {
+      const usuario = document.getElementById('input-usuario').value;
+      const senha = document.getElementById('input-senha').value;
+      const erro = document.getElementById('erro-login');
+      erro.style.display = 'none';
+
+      try {
+        const res = await fetch(`${API}/login`, {
+          method: 'POST',
+          body: (() => { const f = new FormData(); f.append('username', usuario); f.append('password', senha); return f; })()
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+
+        token = data.access_token;
+        sessionStorage.setItem('nano_iaas_token', token);
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('tela-dashboard').style.display = 'block';
+        carregarTodos();
+      } catch (e) {
+        erro.style.display = 'block';
+      }
+    }
+
+    function fazerLogout() {
+      token = null;
+      sessionStorage.removeItem('nano_iaas_token');
+      document.getElementById('tela-login').style.display = 'flex';
+      document.getElementById('tela-dashboard').style.display = 'none';
+      document.getElementById('input-senha').value = '';
+    }
+
+    function atualizarContadores() {
+      document.getElementById('cnt-gcp').textContent = counts.gcp || '—';
+      document.getElementById('cnt-azure').textContent = counts.azure || '—';
+      document.getElementById('cnt-aws').textContent = counts.aws || '—';
+      const total = counts.gcp + counts.azure + counts.aws;
+      document.getElementById('cnt-total').textContent = total || '—';
+    }
+
+    async function carregar(provider) {
+      setStatus(`Carregando ${provider.toUpperCase()}...`, 'loading');
+      try {
+        const res = await fetch(`${API}/list/${provider}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        counts[provider] = data.resources.length;
+        atualizarContadores();
+        renderizar([{ provider, resources: data.resources }]);
+        setStatus(`${data.resources.length} recursos carregados — ${provider.toUpperCase()}`, 'success');
+      } catch (e) {
+        setStatus(`Erro: ${e.message}`, 'error');
+      }
+    }
+
+    function sessaoExpirada() {
+      setStatus('Sessão expirada. Faça login novamente.', 'error');
+      fazerLogout();
+    }
+
+    async function carregarTodos() {
+      setStatus('Carregando todos os providers...', 'loading');
+      try {
+        const [gcp, azure, aws] = await Promise.all([
+          fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        ]);
+        if (gcp.status === 401 || azure.status === 401 || aws.status === 401) {
+          return sessaoExpirada();
+        }
+        const [gcpData, azureData, awsData] = await Promise.all([gcp.json(), azure.json(), aws.json()]);
+        counts.gcp = gcpData.resources.length;
+        counts.azure = azureData.resources.length;
+        counts.aws = awsData.resources.length;
+        atualizarContadores();
+        renderizar([
+          { provider: 'gcp', resources: gcpData.resources },
+          { provider: 'azure', resources: azureData.resources },
+          { provider: 'aws', resources: awsData.resources },
+        ]);
+        const total = gcpData.resources.length + azureData.resources.length + awsData.resources.length;
+        setStatus(`${total} recursos carregados — GCP + Azure + AWS`, 'success');
+      } catch (e) {
+        setStatus(`Erro: ${e.message}`, 'error');
+      }
+    }
+
+    function renderizar(providers) {
+      recursosAtuais = [];
+      providers.forEach(({ provider, resources }) => {
+        resources.forEach(r => recursosAtuais.push({ provider, ...r }));
+      });
+      desenharTabela(recursosAtuais);
+    }
+
+    function desenharTabela(lista) {
+      const wrap = document.getElementById('painel-recursos');
+      const icones = {
+        gcp: '<img src="gcp.png" alt="" style="width:16px;vertical-align:middle">',
+        azure: '<img src="azure.png" alt="" style="width:16px;vertical-align:middle">',
+        aws: '<img src="aws.png" alt="" style="width:16px;vertical-align:middle">'
+      };
+
+      let linhas = '';
+      if (lista.length === 0) {
+        linhas = '<tr><td colspan="5" class="empty">Nenhum recurso encontrado.</td></tr>';
+      } else {
+        lista.forEach(r => {
+          const provider = r.provider;
+          linhas += `
+            <tr style="cursor:pointer" title="Clique para ver os dados" onclick="lerDados('${provider}','${r.name}')">
+              <td><div class="provider-cell">
+                <span>${icones[provider]}</span>
+                <span class="provider-name">${provider.toUpperCase()}</span>
+              </div></td>
+              <td class="resource-name">${r.name} <span style="font-size:11px;color:#6b6b6b">▶ ver dados</span></td>
+              <td><span class="type-badge type-${r.type}">${r.type}</span></td>
+              <td class="date-cell location-cell">${r.location || formatDate(r.last_modified) || '—'}</td>
+              <td class="date-cell">${formatDate(r.created) || '—'}</td>
+            </tr>
+          `;
+        });
+      }
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Localização / Modificado</th>
+              <th>Criado</th>
+            </tr>
+          </thead>
+          <tbody id="corpo">${linhas}</tbody>
+        </table>
+      `;
+    }
+
+    function filtrarRecursos(termo) {
+      if (!termo) { desenharTabela(recursosAtuais); return; }
+      const t = termo.toLowerCase();
+      const filtrados = recursosAtuais.filter(r => r.name.toLowerCase().includes(t));
+      desenharTabela(filtrados);
+    }
+
+    function mostrarLogs(logs, limite) {
+      limite = limite || 10;
+      const wrap = document.getElementById('painel-recursos');
+      const exibir = logs.slice(0, limite);
+
+      let html = `
+        <div style="display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid #2C2C2C;flex-wrap:wrap">
+          <span style="color:#34A853;font-size:13px;font-weight:600"><img src="Auditoria.png" width="16" style="vertical-align:middle"> Logs de auditoria</span>
+          <button onclick="carregarTodos()" class="page-btn">← voltar</button>
+          <span style="font-size:12px;color:#6b6b6b;margin-left:10px">Exibir:</span>
+          <button onclick="verLogs(10)" class="page-btn ${limite===10?'active':''}">10</button>
+          <button onclick="verLogs(20)" class="page-btn ${limite===20?'active':''}">20</button>
+          <button onclick="verLogs(50)" class="page-btn ${limite===50?'active':''}">50</button>
+          <button onclick="downloadLogs()" class="btn-csv">Baixar CSV</button>
+        </div>
+        <div class="timeline">
+      `;
+
+      const iconesProvider = { gcp: 'gcp.png', azure: 'azure.png', aws: 'aws.png' };
+
+      exibir.forEach(log => {
+        const prov = (log.provider || '').toLowerCase();
+        const img = iconesProvider[prov] || 'Todos.png';
+        html += `
+          <div class="timeline-item">
+            <div class="timeline-icon ${prov}"><img src="${img}" alt=""></div>
+            <div class="timeline-body">
+              <div class="timeline-top">
+                <span class="timeline-action">${log.acao}</span>
+                <span class="timeline-time">${log.timestamp}</span>
+              </div>
+              <div class="timeline-desc"><strong>${log.usuario}</strong> acessou <strong>${log.recurso}</strong> via ${log.provider}</div>
+              <div class="timeline-meta">${log.detalhes || ''}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += '</div>';
+      wrap.innerHTML = html;
+      window._logsAtuais = logs;
+    }
+
+    function downloadLogs() {
+      if (!window._logsAtuais) return;
+      gerarCSV(window._logsAtuais);
+    }
+
+    function gerarCSV(logs) {
+      const header = 'Timestamp,Usuario,Acao,Provider,Recurso,Detalhes\n';
+      const linhas = logs.map(l => `${l.timestamp},${l.usuario},${l.acao},${l.provider},${l.recurso},${l.detalhes}`).join('\n');
+      const blob = new Blob([header + linhas], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function verLogs(limite) {
+      limite = limite || 10;
+      setStatus('Carregando logs de auditoria...', 'loading');
+      try {
+        const res = await fetch(`${API}/audit`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        mostrarLogs(data.logs, limite);
+        setStatus(`${Math.min(limite, data.logs.length)} registros de auditoria`, 'success');
+      } catch (e) {
+        setStatus(`Erro: ${e.message}`, 'error');
+      }
+    }
+
+    async function lerDados(provider, bucket) {
+      setStatus(`Lendo dados de ${bucket}...`, 'loading');
+      try {
+        const res = await fetch(`${API}/read/${provider}/${bucket}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.records || data.records.length === 0) {
+          setStatus(`Nenhum dado encontrado em ${bucket}`, 'error');
+          return;
+        }
+        mostrarDados(provider, bucket, data.records);
+        setStatus(`${data.records.length} registros carregados de ${bucket}`, 'success');
+      } catch (e) {
+        setStatus(`Erro: ${e.message}`, 'error');
+      }
+    }
+
+    function mostrarDados(provider, bucket, records) {
+      const wrap = document.getElementById('painel-recursos');
+      const icones = {
+        gcp: '<img src="gcp.png" alt="" style="width:16px;vertical-align:middle">',
+        azure: '<img src="azure.png" alt="" style="width:16px;vertical-align:middle">',
+        aws: '<img src="aws.png" alt="" style="width:16px;vertical-align:middle">'
+      };
+      const colunas = Object.keys(records[0]).filter(k => !k.startsWith('_'));
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <td colspan="${colunas.length}" style="padding:14px 22px;background:#181818">
+                <span style="color:#B0B0B0;font-size:13px;font-weight:600">
+                  ${icones[provider]} ${provider.toUpperCase()} › ${bucket}
+                </span>
+                <button onclick="carregarTodos()" class="page-btn" style="margin-left:14px">← voltar</button>
+              </td>
+            </tr>
+            <tr>${colunas.map(c => `<th>${c}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+      `;
+      records.forEach(r => {
+        html += '<tr>' + colunas.map(c => `<td>${r[c] ?? '—'}</td>`).join('') + '</tr>';
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    }
+  </script>
+
+</body>
+</html>
+HTMLEOF
+echo "index.html atualizado: bug do null corrigido + sessao persistente!"
