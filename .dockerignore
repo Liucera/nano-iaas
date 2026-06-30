@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.gitignore
+*.md
+audit.log
+awscliv2.zip
+*.sh
+terraform/
+docs/
+.env
+*.egg-info/
