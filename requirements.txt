@@ -8,6 +8,7 @@ pyarrow>=10.0
 rich>=13.0
 pyyaml>=6.0
 pydantic>=2.0
+pydantic[email]>=2.0
 pytest>=7.0
 pytest-cov>=4.0
 numpy>=1.24,<2.3
@@ -18,3 +19,4 @@ passlib[bcrypt]>=1.7.4
 bcrypt==4.0.1
 python-multipart>=0.0.26
 psycopg2-binary>=2.9.9
+cryptography>=42.0.0

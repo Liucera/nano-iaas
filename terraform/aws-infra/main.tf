@@ -359,6 +359,26 @@ resource "aws_secretsmanager_secret_version" "jwt_secret" {
   secret_string = random_password.jwt_secret.result
 }
 
+# Chave mestra usada para criptografar/descriptografar as credenciais de nuvem
+# de cada cliente (padrao Fernet: 32 bytes urlsafe base64), gerada automaticamente
+resource "random_bytes" "credentials_encryption_key" {
+  length = 32
+}
+
+resource "aws_secretsmanager_secret" "credentials_encryption_key" {
+  name        = "nano-iaas/credentials-encryption-key-${var.environment}"
+  description = "Chave mestra Fernet para criptografar credenciais de nuvem dos clientes"
+  tags = {
+    Project   = "nano-iaas"
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_secretsmanager_secret_version" "credentials_encryption_key" {
+  secret_id     = aws_secretsmanager_secret.credentials_encryption_key.id
+  secret_string = random_bytes.credentials_encryption_key.base64
+}
+
 # ── RDS POSTGRESQL (db.t4g.micro, qualifica para o Free Tier da AWS) ──
 
 resource "aws_db_instance" "nano_iaas" {
@@ -509,7 +529,8 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
       Action   = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.db_credentials.arn,
-        aws_secretsmanager_secret.jwt_secret.arn
+        aws_secretsmanager_secret.jwt_secret.arn,
+        aws_secretsmanager_secret.credentials_encryption_key.arn
       ]
     }]
   })
@@ -543,7 +564,10 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = [aws_secretsmanager_secret.db_credentials.arn]
+      Resource = [
+        aws_secretsmanager_secret.db_credentials.arn,
+        aws_secretsmanager_secret.credentials_encryption_key.arn
+      ]
     }]
   })
 }
@@ -591,7 +615,8 @@ resource "aws_ecs_task_definition" "nano_iaas_backend" {
         { name = "AWS_REGION", value = var.aws_region }
       ]
       secrets = [
-        { name = "NANO_IAAS_SECRET_KEY", valueFrom = aws_secretsmanager_secret.jwt_secret.arn }
+        { name = "NANO_IAAS_SECRET_KEY", valueFrom = aws_secretsmanager_secret.jwt_secret.arn },
+        { name = "NANO_IAAS_ENCRYPTION_KEY", valueFrom = aws_secretsmanager_secret.credentials_encryption_key.arn }
       ]
       logConfiguration = {
         logDriver = "awslogs"
