@@ -22,13 +22,17 @@
 - Testes automatizados locais passando
 - Pagamento Pix manual com chave configuravel por ambiente
 - Dominio proprio definido: app.nano-iaas.com.br e api.nano-iaas.com.br
+- Política read-only mantida: apenas listagem e leitura; sem escrita, delete ou alteração de recursos
+- Frente Pré-Beta de LGPD e Privacidade criada com documentos iniciais
 
 ## Pendente antes do lancamento (~5%)
 
 - [x] Limite de tentativas de login (protecao contra forca bruta)
+- [ ] Revisão jurídica futura da Política de Privacidade e Termos de Uso
 - [ ] Restringir a permissao S3 da IAM Role da task (hoje usa Resource "*", mais amplo que o ideal)
 - [x] Preparar certificado ACM e listener HTTPS no Terraform
 - [ ] Criar registros DNS no Registro.br e validar o certificado ACM
+- [x] Documentos iniciais de Privacidade e Termos de Uso para adequação inicial à LGPD
 - [x] Frontend: cadastro e configuracao basica de credenciais de nuvem sem depender de API/curl
 - [x] Rota para o usuario ATUALIZAR seu proprio plano
 

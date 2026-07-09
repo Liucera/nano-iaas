@@ -76,6 +76,25 @@ O **Nano-IaaS** e uma plataforma web de leitura e auditoria de dados multi-cloud
 
 ---
 
+## Privacidade e LGPD
+
+O Nano-IaaS possui uma frente Pré-Beta de privacidade e proteção de dados, tratada como adequação inicial à LGPD.
+
+Documentos iniciais:
+- [Política de Privacidade](docs/PRIVACIDADE.md)
+- [Termos de Uso](docs/TERMOS_DE_USO.md)
+
+Pontos principais:
+- O produto atua em modo read-only: apenas listagem e leitura de recursos cloud.
+- O usuário deve fornecer credenciais cloud com permissões mínimas e somente leitura.
+- Credenciais cloud cadastradas são armazenadas criptografadas.
+- Logs de auditoria podem ser gerados para segurança e rastreabilidade.
+- A tela de cadastro exige aceite explícito dos Termos de Uso e da Política de Privacidade.
+
+Esta documentação não promete conformidade total com a LGPD; ela representa uma adequação inicial que deve passar por revisão jurídica futura.
+
+---
+
 ## Como rodar localmente
 
 ### Pre-requisitos
