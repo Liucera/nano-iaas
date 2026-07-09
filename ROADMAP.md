@@ -1,6 +1,6 @@
 # Roadmap — Nano-IaaS
 
-## Status atual - Beta QA (~97% do MVP)
+## Status atual - Beta QA (~98% do MVP)
 
 - CLI multicloud (read, list, config)
 - Provider AWS real (S3, autenticado via credenciais do usuario ou IAM Role da task) — validado em producao
@@ -20,6 +20,7 @@
 - Landing page com planos Gratuito (R$0), Popular (R$100/mes) e Premium (R$1.000/mes)
 - Frontend unificado, cadastro e configuracao basica de credenciais/plano
 - Testes automatizados locais passando
+- Pagamento Pix manual com chave configuravel por ambiente
 
 ## Pendente antes do lancamento (~5%)
 
@@ -31,8 +32,8 @@
 
 ## Outras pendencias (~3%)
 
-- [ ] Pagamento via PIX com QR code estatico e confirmacao manual
+- [x] Pagamento via Pix estatico/manual com solicitacao de aprovacao
 
 ## Progresso geral
 
-~97% do MVP concluido. O projeto esta pronto para iniciar QA/Beta controlado. Falta principalmente endurecimento de infraestrutura, HTTPS/dominio, acabamento visual das configuracoes e validacao operacional com credenciais reais nas tres nuvens.
+~98% do MVP concluido. O projeto esta pronto para iniciar QA/Beta controlado. Falta principalmente endurecimento de infraestrutura, HTTPS/dominio, acabamento visual das configuracoes e validacao operacional com credenciais reais nas tres nuvens.

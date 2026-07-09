@@ -38,6 +38,7 @@ ALGORITHM = "HS256"
 TOKEN_EXPIRA_EM = 60  # minutos
 
 PLANOS_VALIDOS = ("gratuito", "popular", "premium")
+PLANOS_VALORES = {"gratuito": 0, "popular": 100, "premium": 1000}
 PROVIDERS_VALIDOS = ("gcp", "azure", "aws")
 LOGIN_MAX_TENTATIVAS = 5
 LOGIN_JANELA_SEGUNDOS = 300
@@ -152,6 +153,19 @@ def garantir_tabelas():
                     UNIQUE(user_id, provider)
                 );
             """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS pix_payment_requests (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    email TEXT NOT NULL,
+                    plano TEXT NOT NULL,
+                    valor_centavos INTEGER NOT NULL,
+                    comprovante TEXT,
+                    status TEXT NOT NULL DEFAULT 'pendente',
+                    criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    aprovado_em TIMESTAMPTZ
+                );
+            """)
         conn.commit()
     finally:
         conn.close()
@@ -234,6 +248,75 @@ def atualizar_plano_usuario(user_id: int, plano: str):
             usuario = cur.fetchone()
         conn.commit()
         return usuario
+    finally:
+        conn.close()
+
+def criar_solicitacao_pix(usuario: dict, plano: str, comprovante: str = ""):
+    valor_centavos = PLANOS_VALORES[plano] * 100
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO pix_payment_requests (user_id, email, plano, valor_centavos, comprovante)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id, email, plano, valor_centavos, comprovante, status, criado_em
+                """,
+                (usuario["id"], usuario["email"], plano, valor_centavos, comprovante),
+            )
+            solicitacao = cur.fetchone()
+        conn.commit()
+        return solicitacao
+    finally:
+        conn.close()
+
+def listar_solicitacoes_pix(status: str = "pendente", limite: int = 50):
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, user_id, email, plano, valor_centavos, comprovante, status, criado_em, aprovado_em
+                FROM pix_payment_requests
+                WHERE status = %s
+                ORDER BY criado_em DESC
+                LIMIT %s
+                """,
+                (status, limite),
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+def aprovar_solicitacao_pix(solicitacao_id: int):
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                UPDATE pix_payment_requests
+                SET status = 'aprovado', aprovado_em = now()
+                WHERE id = %s AND status = 'pendente'
+                RETURNING id, user_id, email, plano, valor_centavos, status, aprovado_em
+                """,
+                (solicitacao_id,),
+            )
+            solicitacao = cur.fetchone()
+            if not solicitacao:
+                conn.rollback()
+                return None
+            cur.execute(
+                """
+                UPDATE users
+                SET plano = %s
+                WHERE id = %s
+                RETURNING id, email, plano, is_admin
+                """,
+                (solicitacao["plano"], solicitacao["user_id"]),
+            )
+            usuario = cur.fetchone()
+        conn.commit()
+        return {"solicitacao": solicitacao, "usuario": usuario}
     finally:
         conn.close()
 
@@ -357,6 +440,10 @@ class CadastroRequest(BaseModel):
 class PlanoRequest(BaseModel):
     plano: str
 
+class PixRequest(BaseModel):
+    plano: str
+    comprovante: str = ""
+
 class CredencialAWS(BaseModel):
     access_key_id: str
     secret_access_key: str
@@ -401,6 +488,22 @@ def registrar_falha_login(chave: str):
 def limpar_falhas_login(chave: str):
     _tentativas_login.pop(chave, None)
 
+def obter_config_pix():
+    return {
+        "chave": os.environ.get("NANO_IAAS_PIX_KEY", "arlindo.barroso100@yahoo.com"),
+        "recebedor": os.environ.get("NANO_IAAS_PIX_RECEIVER", "Arlindo da Silva Barroso"),
+        "cidade": os.environ.get("NANO_IAAS_PIX_CITY", "Pacatuba, Ceara"),
+        "instrucao": "Envie o Pix e informe o identificador/comprovante para aprovacao manual.",
+        "planos": {
+            "popular": {"valor": PLANOS_VALORES["popular"], "descricao": "Plano Popular"},
+            "premium": {"valor": PLANOS_VALORES["premium"], "descricao": "Plano Premium"},
+        },
+    }
+
+def exigir_admin(usuario: dict):
+    if not usuario.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Acesso restrito ao administrador")
+
 def usuario_atual(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -426,9 +529,9 @@ def cadastro(dados: CadastroRequest):
         raise HTTPException(status_code=409, detail="Ja existe uma conta com esse e-mail")
 
     senha_hash = gerar_hash_senha(dados.senha)
-    novo = criar_usuario(dados.email, senha_hash, dados.plano)
+    novo = criar_usuario(dados.email, senha_hash, "gratuito")
     token = criar_token({"sub": novo["email"], "uid": novo["id"]})
-    registrar_acesso(novo["email"], "CADASTRO", "-", "-", f"plano {novo['plano']}")
+    registrar_acesso(novo["email"], "CADASTRO", "-", "-", f"plano solicitado {dados.plano}")
     return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/login", response_model=Token)
@@ -458,10 +561,45 @@ def meus_dados(usuario=Depends(usuario_atual)):
         "providers_configurados": providers,
     }
 
+@app.get("/pix")
+def dados_pix(usuario=Depends(usuario_atual)):
+    return obter_config_pix()
+
+@app.post("/pix/solicitacao")
+def solicitar_ativacao_pix(dados: PixRequest, usuario=Depends(usuario_atual)):
+    if dados.plano not in ("popular", "premium"):
+        raise HTTPException(status_code=400, detail="Plano Pix invalido")
+    solicitacao = criar_solicitacao_pix(usuario, dados.plano, dados.comprovante)
+    registrar_acesso(usuario["email"], "PIX_SOLICITADO", "-", "-", f"plano {dados.plano}")
+    return {
+        "id": solicitacao["id"],
+        "status": solicitacao["status"],
+        "plano": solicitacao["plano"],
+        "valor": solicitacao["valor_centavos"] / 100,
+        "pix": obter_config_pix(),
+    }
+
+@app.get("/admin/pix/solicitacoes")
+def admin_listar_pix(status: str = "pendente", usuario=Depends(usuario_atual)):
+    exigir_admin(usuario)
+    solicitacoes = listar_solicitacoes_pix(status=status)
+    return {"solicitacoes": [dict(s) for s in solicitacoes]}
+
+@app.post("/admin/pix/solicitacoes/{solicitacao_id}/aprovar")
+def admin_aprovar_pix(solicitacao_id: int, usuario=Depends(usuario_atual)):
+    exigir_admin(usuario)
+    resultado = aprovar_solicitacao_pix(solicitacao_id)
+    if not resultado:
+        raise HTTPException(status_code=404, detail="Solicitacao Pix pendente nao encontrada")
+    registrar_acesso(usuario["email"], "PIX_APROVADO", "-", str(solicitacao_id), resultado["usuario"]["email"])
+    return resultado
+
 @app.patch("/me/plano")
 def atualizar_meu_plano(dados: PlanoRequest, usuario=Depends(usuario_atual)):
     if dados.plano not in PLANOS_VALIDOS:
         raise HTTPException(status_code=400, detail="Plano invalido")
+    if dados.plano != "gratuito":
+        raise HTTPException(status_code=402, detail="Planos pagos exigem solicitacao Pix em /pix/solicitacao")
     atualizado = atualizar_plano_usuario(usuario["id"], dados.plano)
     registrar_acesso(usuario["email"], "PLANO", "-", "-", f"plano {dados.plano}")
     return {
