@@ -19,16 +19,16 @@
 
 ## Status Beta
 
-MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com dominio proprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API e emitido pelo AWS ACM e validado por DNS no Registro.br.
+MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-Dominios planejados:
+Domínios planejados:
 - Dashboard: https://app.nano-iaas.com.br
 - API Docs: https://api.nano-iaas.com.br/docs
 
-Registros DNS necessarios no Registro.br:
+Registros DNS necessários no Registro.br:
 - `app.nano-iaas.com.br` como CNAME para `Liucera.github.io`.
 - `api.nano-iaas.com.br` como CNAME para o DNS do ALB retornado em `terraform/aws-infra` pelo output `alb_dns_name`.
-- CNAME de validacao do ACM retornado pelo output `acm_dns_validation_records` apos `terraform apply`.
+- CNAME de validação do ACM retornado pelo output `acm_dns_validation_records` após `terraform apply`.
 
 Para ativar HTTPS no ALB depois que o ACM estiver validado:
 
@@ -76,12 +76,12 @@ A promessa de segurança permanece read-only: os providers devem apenas listar r
 
 ## Funcionalidades
 
-- Multi-cloud - AWS, GCP e Azure em uma interface so
-- Autenticacao JWT - login seguro com token de acesso
-- Dashboard visual - visualizacao de buckets e containers
+- Multi-cloud - AWS, GCP e Azure em uma interface só
+- Autenticação JWT - login seguro com token de acesso
+- Dashboard visual - visualização de buckets e containers
 - Leitura de dados - suporte a JSON, JSONL, CSV e LOG
 - Auditoria completa - registro de quem acessou o que e quando
-- HTTPS - comunicacao criptografada de ponta a ponta
+- HTTPS - comunicação criptografada de ponta a ponta
 - Deploy na nuvem - AWS ECS Fargate + ALB (backend) + GitHub Pages (frontend)
 
 ---
@@ -91,7 +91,7 @@ A promessa de segurança permanece read-only: os providers devem apenas listar r
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12 + FastAPI |
-| Autenticacao | JWT (python-jose + passlib) |
+| Autenticação | JWT (python-jose + passlib) |
 | CLI | Click + Rich |
 | AWS | boto3 |
 | GCP | google-cloud-storage |
@@ -122,6 +122,30 @@ Esta documentação não promete conformidade total com a LGPD; ela representa u
 
 ---
 
+## Tutorial Beta multi-cloud
+
+O tutorial oficial da Beta tem três caminhos, todos seguindo o mesmo fluxo operacional:
+
+| Caminho | Provider | Credencial esperada |
+|---|---|---|
+| Conectar AWS S3 | AWS S3 | Access key ID e secret access key, variáveis AWS ou IAM Role |
+| Conectar Azure Blob Storage | Azure Blob Storage | Connection string |
+| Conectar Google Cloud Storage | Google Cloud Storage | Service account JSON |
+
+Fluxo comum para os três providers:
+
+1. Criar conta.
+2. Fazer login.
+3. Cadastrar credenciais.
+4. Escolher provider.
+5. Listar buckets/containers.
+6. Abrir arquivos.
+7. Consultar auditoria.
+
+Durante a Beta, esse fluxo oficial vale para o Dashboard/API. O CLI segue disponível, mas GCP e Azure ainda estão em consolidação no CLI e podem usar mocks/dev.
+
+---
+
 ## Como rodar localmente
 
 ### Pre-requisitos
@@ -129,7 +153,7 @@ Esta documentação não promete conformidade total com a LGPD; ela representa u
 - Git
 - WSL2 (recomendado no Windows)
 
-### Instalacao
+### Instalação
 
 ```bash
 git clone https://github.com/Liucera/nano-iaas.git
@@ -180,6 +204,6 @@ GitHub: https://github.com/Liucera
 
 ---
 
-## Licenca
+## Licença
 
-Este projeto esta sob a licenca MIT.
+Este projeto está sob a licença MIT.
