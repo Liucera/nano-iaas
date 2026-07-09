@@ -30,10 +30,12 @@
 ## Pendente antes do lancamento (~5%)
 
 - [x] Limite de tentativas de login (protecao contra forca bruta)
+- [x] Adicionar checkbox de aceite dos Termos de Uso e Política de Privacidade no cadastro
 - [ ] Revisão jurídica futura da Política de Privacidade e Termos de Uso
 - [ ] Restringir a permissao S3 da IAM Role da task (hoje usa Resource "*", mais amplo que o ideal)
 - [x] Preparar certificado ACM e listener HTTPS no Terraform
 - [ ] Criar registros DNS no Registro.br e validar o certificado ACM
+- [x] Persistir aceite de termos no cadastro (aceite_termos, versao_termos e data_aceite_termos)
 - [x] Documentos iniciais de Privacidade e Termos de Uso para adequação inicial à LGPD
 - [x] Frontend: cadastro e configuracao basica de credenciais de nuvem sem depender de API/curl
 - [x] Rota para o usuario ATUALIZAR seu proprio plano

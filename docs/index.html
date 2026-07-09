@@ -113,6 +113,30 @@
       margin-top: 8px; font-family: inherit;
     }
     .btn-secondary:hover { background: rgba(37, 99, 235, 0.12); }
+
+    .aceite-termos {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 12px 0 6px;
+      color: #B0B0B0;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .aceite-termos input {
+      width: auto;
+      margin-top: 2px;
+      accent-color: #2563eb;
+    }
+
+    .aceite-termos a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .aceite-termos a:hover { text-decoration: underline; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
     .settings-panel { padding: 24px; display: grid; gap: 18px; }
     .settings-block { border-bottom: 1px solid #2C2C2C; padding-bottom: 18px; }
@@ -448,6 +472,10 @@
       </div>
 
       <button class="btn-login" onclick="fazerLogin()">Entrar</button>
+      <label class="aceite-termos" for="input-aceite-termos">
+        <input type="checkbox" id="input-aceite-termos" />
+        <span>Li e aceito os <a href="TERMOS_DE_USO.md" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="PRIVACIDADE.md" target="_blank" rel="noopener">Política de Privacidade</a>.</span>
+      </label>
       <button class="btn-secondary" onclick="fazerCadastro()">Criar conta</button>
       <div class="campo" style="margin-top:18px">
         <label for="input-plano">Plano</label>
@@ -584,7 +612,45 @@
 
     async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
 
-    async function fazerCadastro() { const email = document.getElementById("input-usuario").value; const senha = document.getElementById("input-senha").value; const plano = document.getElementById("input-plano").value; const erro = document.getElementById("erro-login"); erro.style.display = "none"; try { const data = await apiFetch("/cadastro", { method: "POST", json: { email, senha, plano } }); token = data.access_token; sessionStorage.setItem("nano_iaas_token", token); document.getElementById("tela-login").style.display = "none"; document.getElementById("tela-dashboard").style.display = "block"; if (plano !== "gratuito") { await solicitarPixPrompt(plano); } else { exibirConfiguracoes(); } } catch (e) { erro.textContent = e.message; erro.style.display = "block"; } }
+    async function fazerCadastro() {
+      const email = document.getElementById("input-usuario").value;
+      const senha = document.getElementById("input-senha").value;
+      const plano = document.getElementById("input-plano").value;
+      const aceiteTermos = document.getElementById("input-aceite-termos").checked;
+      const erro = document.getElementById("erro-login");
+      erro.style.display = "none";
+
+      if (!aceiteTermos) {
+        erro.textContent = "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.";
+        erro.style.display = "block";
+        return;
+      }
+
+      try {
+        const data = await apiFetch("/cadastro", {
+          method: "POST",
+          json: {
+            email,
+            senha,
+            plano,
+            aceite_termos: true,
+            versao_termos: "beta-2026-07"
+          }
+        });
+        token = data.access_token;
+        sessionStorage.setItem("nano_iaas_token", token);
+        document.getElementById("tela-login").style.display = "none";
+        document.getElementById("tela-dashboard").style.display = "block";
+        if (plano !== "gratuito") {
+          await solicitarPixPrompt(plano);
+        } else {
+          exibirConfiguracoes();
+        }
+      } catch (e) {
+        erro.textContent = e.message;
+        erro.style.display = "block";
+      }
+    }
 
     async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + me.email + " | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 

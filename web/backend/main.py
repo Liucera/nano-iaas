@@ -42,6 +42,7 @@ PLANOS_VALORES = {"gratuito": 0, "popular": 100, "premium": 1000}
 PROVIDERS_VALIDOS = ("gcp", "azure", "aws")
 LOGIN_MAX_TENTATIVAS = 5
 LOGIN_JANELA_SEGUNDOS = 300
+VERSAO_TERMOS_ATUAL = "beta-2026-07"
 _tentativas_login = defaultdict(deque)
 
 # ── Chave de criptografia das credenciais de nuvem dos clientes ──
@@ -143,6 +144,9 @@ def garantir_tabelas():
                     criado_em TIMESTAMPTZ NOT NULL DEFAULT now()
                 );
             """)
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS aceite_termos BOOLEAN NOT NULL DEFAULT false;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS versao_termos TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS data_aceite_termos TIMESTAMPTZ;")
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS cloud_credentials (
                     id SERIAL PRIMARY KEY,
@@ -214,17 +218,17 @@ def buscar_usuario_por_id(user_id: int):
     finally:
         conn.close()
 
-def criar_usuario(email: str, senha_hash: str, plano: str = "gratuito"):
+def criar_usuario(email: str, senha_hash: str, plano: str = "gratuito", aceite_termos: bool = False, versao_termos: str | None = None):
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                INSERT INTO users (email, senha_hash, plano)
-                VALUES (%s, %s, %s)
+                INSERT INTO users (email, senha_hash, plano, aceite_termos, versao_termos, data_aceite_termos)
+                VALUES (%s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END)
                 RETURNING id, email, plano, is_admin
                 """,
-                (email, senha_hash, plano),
+                (email, senha_hash, plano, aceite_termos, versao_termos, aceite_termos),
             )
             novo = cur.fetchone()
         conn.commit()
@@ -441,6 +445,8 @@ class CadastroRequest(BaseModel):
     email: EmailStr
     senha: str
     plano: str = "gratuito"
+    aceite_termos: bool = False
+    versao_termos: str = VERSAO_TERMOS_ATUAL
 
 class PlanoRequest(BaseModel):
     plano: str
@@ -530,11 +536,15 @@ def cadastro(dados: CadastroRequest):
         raise HTTPException(status_code=400, detail="Plano invalido")
     if len(dados.senha) < 8:
         raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 8 caracteres")
+    if not dados.aceite_termos:
+        raise HTTPException(status_code=400, detail="Aceite os Termos de Uso e a Política de Privacidade para criar a conta")
+    if dados.versao_termos != VERSAO_TERMOS_ATUAL:
+        raise HTTPException(status_code=400, detail="Versão dos termos inválida")
     if buscar_usuario_por_email(dados.email):
         raise HTTPException(status_code=409, detail="Ja existe uma conta com esse e-mail")
 
     senha_hash = gerar_hash_senha(dados.senha)
-    novo = criar_usuario(dados.email, senha_hash, "gratuito")
+    novo = criar_usuario(dados.email, senha_hash, "gratuito", dados.aceite_termos, dados.versao_termos)
     token = criar_token({"sub": novo["email"], "uid": novo["id"]})
     registrar_acesso(novo["email"], "CADASTRO", "-", "-", f"plano solicitado {dados.plano}")
     return {"access_token": token, "token_type": "bearer"}
