@@ -1,18 +1,41 @@
 <div align="center">
-  <img src="https://liucera.github.io/nano-iaas/logo.svg" alt="Nano-IaaS" width="400"/>
+  <img src="https://app.nano-iaas.com.br/logo.svg" alt="Nano-IaaS" width="400"/>
   
   # Nano-IaaS
   
   **Dashboard multi-cloud para leitura e auditoria de dados**
   
-  [![Deploy](https://img.shields.io/badge/backend-railway-blueviolet)](https://web-production-87d4d.up.railway.app)
-  [![Frontend](https://img.shields.io/badge/frontend-github%20pages-222)](https://liucera.github.io/nano-iaas/)
+  [![API](https://img.shields.io/badge/api-api.nano--iaas.com.br-orange)](https://api.nano-iaas.com.br/docs)
+  [![Frontend](https://img.shields.io/badge/app-app.nano--iaas.com.br-222)](https://app.nano-iaas.com.br/)
   [![Python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
   [![FastAPI](https://img.shields.io/badge/FastAPI-0.135-009688)](https://fastapi.tiangolo.com)
   [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-  [Acessar Dashboard](https://liucera.github.io/nano-iaas/) | [API Docs](https://web-production-87d4d.up.railway.app/docs)
+  [Acessar Dashboard](https://app.nano-iaas.com.br/) | [API Docs](https://api.nano-iaas.com.br/docs)
 </div>
+
+---
+
+
+## Status Beta
+
+MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com dominio proprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API e emitido pelo AWS ACM e validado por DNS no Registro.br.
+
+Dominios planejados:
+- Dashboard: https://app.nano-iaas.com.br
+- API Docs: https://api.nano-iaas.com.br/docs
+
+Registros DNS necessarios no Registro.br:
+- `app.nano-iaas.com.br` como CNAME para `Liucera.github.io`.
+- `api.nano-iaas.com.br` como CNAME para o DNS do ALB retornado em `terraform/aws-infra` pelo output `alb_dns_name`.
+- CNAME de validacao do ACM retornado pelo output `acm_dns_validation_records` apos `terraform apply`.
+
+Para ativar HTTPS no ALB depois que o ACM estiver validado:
+
+```bash
+cd terraform/aws-infra
+terraform apply -var="enable_https=true"
+```
 
 ---
 
@@ -32,7 +55,7 @@ O **Nano-IaaS** e uma plataforma web de leitura e auditoria de dados multi-cloud
 - Leitura de dados - suporte a JSON, JSONL, CSV e LOG
 - Auditoria completa - registro de quem acessou o que e quando
 - HTTPS - comunicacao criptografada de ponta a ponta
-- Deploy na nuvem - Railway (backend) + GitHub Pages (frontend)
+- Deploy na nuvem - AWS ECS Fargate + ALB (backend) + GitHub Pages (frontend)
 
 ---
 
@@ -47,7 +70,7 @@ O **Nano-IaaS** e uma plataforma web de leitura e auditoria de dados multi-cloud
 | GCP | google-cloud-storage |
 | Azure | azure-storage-blob |
 | Frontend | HTML + CSS + JavaScript |
-| Deploy Backend | Railway |
+| Deploy Backend | AWS ECS Fargate + ALB |
 | Deploy Frontend | GitHub Pages |
 | CI/CD | GitHub Actions |
 
@@ -80,7 +103,7 @@ uvicorn web.backend.main:app --reload
 ### Rodando o frontend
 
 ```bash
-python3 -m http.server 3000 --directory web/frontend
+python3 -m http.server 3000 --directory docs
 ```
 
 Acesse: http://localhost:3000

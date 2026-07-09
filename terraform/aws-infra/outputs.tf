@@ -42,3 +42,45 @@ output "ecs_service_name" {
   description = "Nome do servico ECS do backend"
   value       = aws_ecs_service.nano_iaas_backend.name
 }
+
+output "frontend_url" {
+  description = "URL publica esperada do frontend apos configurar o CNAME no GitHub Pages/Registro.br"
+  value       = "https://${var.app_domain_name}"
+}
+
+output "backend_https_url" {
+  description = "URL publica esperada da API apos validar ACM e ativar enable_https"
+  value       = "https://${var.api_domain_name}"
+}
+
+output "api_domain_name" {
+  description = "Dominio que deve apontar para o ALB"
+  value       = var.api_domain_name
+}
+
+output "app_domain_name" {
+  description = "Dominio que deve apontar para o GitHub Pages"
+  value       = var.app_domain_name
+}
+
+output "alb_dns_name" {
+  description = "Destino DNS do CNAME api no Registro.br"
+  value       = aws_lb.nano_iaas.dns_name
+}
+
+output "acm_certificate_arn" {
+  description = "ARN do certificado ACM solicitado para a API"
+  value       = aws_acm_certificate.api.arn
+}
+
+output "acm_dns_validation_records" {
+  description = "Registros CNAME que devem ser criados no Registro.br para validar o certificado ACM"
+  value = [
+    for option in aws_acm_certificate.api.domain_validation_options : {
+      name  = option.resource_record_name
+      type  = option.resource_record_type
+      value = option.resource_record_value
+    }
+  ]
+}
+

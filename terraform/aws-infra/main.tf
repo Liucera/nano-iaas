@@ -225,10 +225,10 @@ resource "aws_security_group" "db" {
 
   ingress {
     description     = "Postgres a partir das tasks do backend"
-    from_port        = 5432
-    to_port          = 5432
-    protocol         = "tcp"
-    security_groups  = [aws_security_group.app_runner.id]
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_runner.id]
   }
 
   egress {
@@ -400,9 +400,9 @@ resource "aws_db_instance" "nano_iaas" {
   db_subnet_group_name   = aws_db_subnet_group.nano_iaas.name
   vpc_security_group_ids = [aws_security_group.db.id]
 
-  storage_encrypted   = true
-  publicly_accessible = false
-  skip_final_snapshot = var.environment != "prod"
+  storage_encrypted         = true
+  publicly_accessible       = false
+  skip_final_snapshot       = var.environment != "prod"
   final_snapshot_identifier = var.environment == "prod" ? "nano-iaas-final-snapshot-${var.environment}" : null
 
   backup_retention_period = var.environment == "prod" ? 7 : 1
@@ -466,10 +466,41 @@ resource "aws_lb_target_group" "nano_iaas_backend" {
   }
 }
 
+
+resource "aws_acm_certificate" "api" {
+  domain_name       = var.api_domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Project   = "nano-iaas"
+    ManagedBy = "terraform"
+  }
+}
+
 resource "aws_lb_listener" "nano_iaas_http" {
   load_balancer_arn = aws_lb.nano_iaas.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.nano_iaas_backend.arn
+  }
+}
+
+
+resource "aws_lb_listener" "nano_iaas_https" {
+  count = var.enable_https ? 1 : 0
+
+  load_balancer_arn = aws_lb.nano_iaas.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = coalesce(var.acm_certificate_arn, aws_acm_certificate.api.arn)
 
   default_action {
     type             = "forward"
@@ -529,8 +560,8 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.db_credentials.arn,
         aws_secretsmanager_secret.jwt_secret.arn,
@@ -566,8 +597,8 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["secretsmanager:GetSecretValue"]
+      Effect = "Allow"
+      Action = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.db_credentials.arn,
         aws_secretsmanager_secret.credentials_encryption_key.arn,
@@ -656,8 +687,8 @@ resource "aws_ecs_service" "nano_iaas_backend" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.nano_iaas_backend.arn
-    container_name    = "backend"
-    container_port    = 8000
+    container_name   = "backend"
+    container_port   = 8000
   }
 
   depends_on = [aws_lb_listener.nano_iaas_http]

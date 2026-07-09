@@ -1,6 +1,6 @@
 # Roadmap — Nano-IaaS
 
-## Status atual - Beta QA (~98% do MVP)
+## Status atual - Beta QA (~99% do MVP)
 
 - CLI multicloud (read, list, config)
 - Provider AWS real (S3, autenticado via credenciais do usuario ou IAM Role da task) — validado em producao
@@ -15,18 +15,20 @@
 - Tela de login com logo SVG de fundo, sessao persistente (sessionStorage)
 - Dashboard redesenhado: sidebar fixa, paleta dark mode, busca por recurso, timeline de auditoria
 - Logs de auditoria em tabela PostgreSQL (audit_log)
-- Terraform completo: VPC, RDS, ECS Fargate, ALB, Secrets Manager (JWT + criptografia), ECR
+- Terraform completo: VPC, RDS, ECS Fargate, ALB, Secrets Manager (JWT + criptografia), ECR, ACM para dominio da API
 - Backend rodando em AWS propria (ECS Fargate + RDS), sem depender de Railway
 - Landing page com planos Gratuito (R$0), Popular (R$100/mes) e Premium (R$1.000/mes)
 - Frontend unificado, cadastro e configuracao basica de credenciais/plano
 - Testes automatizados locais passando
 - Pagamento Pix manual com chave configuravel por ambiente
+- Dominio proprio definido: app.nano-iaas.com.br e api.nano-iaas.com.br
 
 ## Pendente antes do lancamento (~5%)
 
 - [x] Limite de tentativas de login (protecao contra forca bruta)
 - [ ] Restringir a permissao S3 da IAM Role da task (hoje usa Resource "*", mais amplo que o ideal)
-- [ ] Configurar HTTPS no Load Balancer (hoje so HTTP; precisa de certificado ACM + dominio proprio)
+- [x] Preparar certificado ACM e listener HTTPS no Terraform
+- [ ] Criar registros DNS no Registro.br e validar o certificado ACM
 - [x] Frontend: cadastro e configuracao basica de credenciais de nuvem sem depender de API/curl
 - [x] Rota para o usuario ATUALIZAR seu proprio plano
 
@@ -36,4 +38,4 @@
 
 ## Progresso geral
 
-~98% do MVP concluido. O projeto esta pronto para iniciar QA/Beta controlado. Falta principalmente endurecimento de infraestrutura, HTTPS/dominio, acabamento visual das configuracoes e validacao operacional com credenciais reais nas tres nuvens.
+~99% do MVP concluido. O projeto esta pronto para iniciar QA/Beta controlado. Falta principalmente criar/validar os registros DNS no Registro.br, ativar o listener HTTPS depois que o ACM emitir o certificado, endurecer a permissao S3 da IAM Role e validar operacionalmente com credenciais reais nas tres nuvens.

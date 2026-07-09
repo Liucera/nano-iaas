@@ -418,7 +418,12 @@ app = FastAPI(title="Nano-IaaS Web")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://liucera.github.io"],
+    allow_origins=[
+        "https://liucera.github.io",
+        "https://app.nano-iaas.com.br",
+        "https://nano-iaas.com.br",
+        "http://localhost:3000",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

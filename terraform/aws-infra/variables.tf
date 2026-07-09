@@ -27,3 +27,28 @@ variable "backend_image_uri" {
   type        = string
   default     = "488709146598.dkr.ecr.us-east-1.amazonaws.com/nano-iaas-backend-dev:latest"
 }
+
+variable "api_domain_name" {
+  description = "Dominio publico da API usado no certificado ACM e DNS externo"
+  type        = string
+  default     = "api.nano-iaas.com.br"
+}
+
+variable "app_domain_name" {
+  description = "Dominio publico do frontend no GitHub Pages"
+  type        = string
+  default     = "app.nano-iaas.com.br"
+}
+
+variable "enable_https" {
+  description = "Cria listener HTTPS no ALB usando o certificado ACM ja validado"
+  type        = bool
+  default     = false
+}
+
+variable "acm_certificate_arn" {
+  description = "ARN do certificado ACM validado. Se vazio, usa o certificado solicitado por este modulo."
+  type        = string
+  default     = ""
+}
+
