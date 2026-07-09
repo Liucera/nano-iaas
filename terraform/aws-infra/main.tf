@@ -19,6 +19,10 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_secretsmanager_secret" "azure_connection_string" {
+  name = "nano-iaas/azure-connection-string-${var.environment}"
+}
+
 # ── VPC PRIVADA ──
 
 resource "aws_vpc" "nano_iaas" {
@@ -530,7 +534,8 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
       Resource = [
         aws_secretsmanager_secret.db_credentials.arn,
         aws_secretsmanager_secret.jwt_secret.arn,
-        aws_secretsmanager_secret.credentials_encryption_key.arn
+        aws_secretsmanager_secret.credentials_encryption_key.arn,
+        data.aws_secretsmanager_secret.azure_connection_string.arn
       ]
     }]
   })
@@ -558,7 +563,6 @@ resource "aws_iam_role" "ecs_task" {
 resource "aws_iam_role_policy" "ecs_task_secrets" {
   name = "nano-iaas-ecs-task-secrets-${var.environment}"
   role = aws_iam_role.ecs_task.id
-
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -566,7 +570,8 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
       Action   = ["secretsmanager:GetSecretValue"]
       Resource = [
         aws_secretsmanager_secret.db_credentials.arn,
-        aws_secretsmanager_secret.credentials_encryption_key.arn
+        aws_secretsmanager_secret.credentials_encryption_key.arn,
+        data.aws_secretsmanager_secret.azure_connection_string.arn
       ]
     }]
   })
@@ -616,7 +621,8 @@ resource "aws_ecs_task_definition" "nano_iaas_backend" {
       ]
       secrets = [
         { name = "NANO_IAAS_SECRET_KEY", valueFrom = aws_secretsmanager_secret.jwt_secret.arn },
-        { name = "NANO_IAAS_ENCRYPTION_KEY", valueFrom = aws_secretsmanager_secret.credentials_encryption_key.arn }
+        { name = "NANO_IAAS_ENCRYPTION_KEY", valueFrom = aws_secretsmanager_secret.credentials_encryption_key.arn },
+        { name = "AZURE_STORAGE_CONNECTION_STRING", valueFrom = data.aws_secretsmanager_secret.azure_connection_string.arn }
       ]
       logConfiguration = {
         logDriver = "awslogs"

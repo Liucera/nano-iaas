@@ -1,10 +1,11 @@
 # Roadmap — Nano-IaaS
 
-## Concluido (~92%)
+## Status atual - Beta QA (~97% do MVP)
 
 - CLI multicloud (read, list, config)
 - Provider AWS real (S3, autenticado via credenciais do usuario ou IAM Role da task) — validado em producao
-- Providers GCP e Azure mock (dados simulados)
+- Provider GCP real (Google Cloud Storage via service account JSON)
+- Provider Azure real (Blob Storage via connection string)
 - Backend FastAPI com JWT (chave em Secrets Manager)
 - Sistema MULTIUSUARIO completo: cadastro aberto, login, isolamento de dados por conta — validado de ponta a ponta
 - Tabela de usuarios (email, senha hash, plano, is_admin) no RDS PostgreSQL
@@ -17,25 +18,21 @@
 - Terraform completo: VPC, RDS, ECS Fargate, ALB, Secrets Manager (JWT + criptografia), ECR
 - Backend rodando em AWS propria (ECS Fargate + RDS), sem depender de Railway
 - Landing page com planos Gratuito (R$0), Popular (R$100/mes) e Premium (R$1.000/mes)
-- Frontend unificado, codigo versionado no GitHub sem segredos expostos
+- Frontend unificado, cadastro e configuracao basica de credenciais/plano
+- Testes automatizados locais passando
 
 ## Pendente antes do lancamento (~5%)
 
-- [ ] Limite de tentativas de login (protecao contra forca bruta)
+- [x] Limite de tentativas de login (protecao contra forca bruta)
 - [ ] Restringir a permissao S3 da IAM Role da task (hoje usa Resource "*", mais amplo que o ideal)
 - [ ] Configurar HTTPS no Load Balancer (hoje so HTTP; precisa de certificado ACM + dominio proprio)
-- [ ] Frontend: telas de cadastro e de configuracao de credenciais de nuvem (hoje so existem via API/curl)
-- [ ] Rota para o usuario ATUALIZAR seu proprio plano
+- [x] Frontend: cadastro e configuracao basica de credenciais de nuvem sem depender de API/curl
+- [x] Rota para o usuario ATUALIZAR seu proprio plano
 
 ## Outras pendencias (~3%)
 
-- [ ] Providers reais de GCP e Azure (hoje sao mocks; so AWS e real)
 - [ ] Pagamento via PIX com QR code estatico e confirmacao manual
 
 ## Progresso geral
 
-~92% concluido. O bloco mais critico e complexo do projeto — o sistema multiusuario
-com credenciais criptografadas e isolamento de dados por conta — esta implementado,
-testado e validado em producao. Falta principalmente a interface visual (frontend)
-para cadastro/credenciais, HTTPS, e alguns refinamentos de seguranca antes do
-lancamento comercial.
+~97% do MVP concluido. O projeto esta pronto para iniciar QA/Beta controlado. Falta principalmente endurecimento de infraestrutura, HTTPS/dominio, acabamento visual das configuracoes e validacao operacional com credenciais reais nas tres nuvens.

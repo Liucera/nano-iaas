@@ -15,6 +15,18 @@ dist/
 *.env
 .env.local
 
+# Terraform local state and provider cache
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # IDEs
 .vscode/
 .idea/
@@ -30,5 +42,7 @@ Thumbs.db
 *.csv
 *.jsonl
 .venv/
+awscliv2.zip
+aws/dist/
 # cache bust Sat May 16 16:02:47 -03 2026
 # trigger

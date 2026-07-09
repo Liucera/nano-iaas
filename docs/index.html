@@ -75,7 +75,7 @@
       letter-spacing: 0.05em;
     }
 
-    .campo input {
+    .campo input, .campo select, .campo textarea {
       width: 100%;
       background: #1E1E1E;
       border: 1px solid #2C2C2C;
@@ -88,7 +88,7 @@
       font-family: inherit;
     }
 
-    .campo input:focus { border-color: #3F51B5; }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { border-color: #3F51B5; }
 
     .btn-login {
       width: 100%;
@@ -106,6 +106,20 @@
     }
 
     .btn-login:hover { opacity: 0.9; }
+
+    .btn-secondary {
+      width: 100%; background: transparent; color: #93c5fd; border: 1px solid #1d4ed8;
+      border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+      margin-top: 8px; font-family: inherit;
+    }
+    .btn-secondary:hover { background: rgba(37, 99, 235, 0.12); }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    .settings-panel { padding: 24px; display: grid; gap: 18px; }
+    .settings-block { border-bottom: 1px solid #2C2C2C; padding-bottom: 18px; }
+    .settings-block:last-child { border-bottom: 0; }
+    .settings-block h3 { font-size: 15px; margin-bottom: 12px; color: #f1f5f9; }
+    .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+    .settings-actions button { width: auto; min-width: 150px; }
 
     .erro-login {
       background: #1f0a0a;
@@ -434,6 +448,15 @@
       </div>
 
       <button class="btn-login" onclick="fazerLogin()">Entrar</button>
+      <button class="btn-secondary" onclick="fazerCadastro()">Criar conta</button>
+      <div class="campo" style="margin-top:18px">
+        <label for="input-plano">Plano</label>
+        <select id="input-plano">
+          <option value="gratuito">Gratuito</option>
+          <option value="popular">Popular</option>
+          <option value="premium">Premium</option>
+        </select>
+      </div>
       <a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#B0B0B0;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3F51B5'" onmouseout="this.style.color='#B0B0B0'">Saiba mais sobre o Nano-IaaS</a>
       <div class="erro-login" id="erro-login">Usuário ou senha incorretos.</div>
     </div>
@@ -457,8 +480,8 @@
         <button class="sidebar-link" onclick="verLogs()">Auditoria</button>
         <a class="sidebar-link" href="landing.html">Landing Page</a>
 
-        <div class="sidebar-section-label">Em breve</div>
-        <button class="sidebar-link disabled" disabled>Configurações</button>
+        <div class="sidebar-section-label">Conta</div>
+        <button class="sidebar-link" onclick="exibirConfiguracoes()">Configurações</button>
         <button class="sidebar-link disabled" disabled>Usuários</button>
         <button class="sidebar-link disabled" disabled>Relatórios</button>
 
@@ -559,6 +582,20 @@
       el.className = 'status ' + (tipo || '');
     }
 
+    async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
+
+    async function fazerCadastro() { const email = document.getElementById("input-usuario").value; const senha = document.getElementById("input-senha").value; const plano = document.getElementById("input-plano").value; const erro = document.getElementById("erro-login"); erro.style.display = "none"; try { const data = await apiFetch("/cadastro", { method: "POST", json: { email, senha, plano } }); token = data.access_token; sessionStorage.setItem("nano_iaas_token", token); document.getElementById("tela-login").style.display = "none"; document.getElementById("tela-dashboard").style.display = "block"; exibirConfiguracoes(); } catch (e) { erro.textContent = e.message; erro.style.display = "block"; } }
+
+    async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + me.email + " | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+
+    async function atualizarPlanoPrompt() { const plano = prompt("Plano: gratuito, popular ou premium"); if (!plano) return; try { await apiFetch("/me/plano", { method: "PATCH", json: { plano } }); setStatus("Plano atualizado", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+
+    async function salvarCredencialAWSPrompt() { const access_key_id = prompt("AWS access key ID"); const secret_access_key = prompt("AWS secret access key"); if (!access_key_id || !secret_access_key) return; try { await apiFetch("/credenciais/aws", { method: "POST", json: { access_key_id, secret_access_key } }); setStatus("Credencial AWS salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+
+    async function salvarCredencialAzurePrompt() { const connection_string = prompt("Azure connection string"); if (!connection_string) return; try { await apiFetch("/credenciais/azure", { method: "POST", json: { connection_string } }); setStatus("Credencial Azure salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+
+    async function salvarCredencialGCPPrompt() { const service_account_json = prompt("GCP service account JSON"); if (!service_account_json) return; try { await apiFetch("/credenciais/gcp", { method: "POST", json: { service_account_json } }); setStatus("Credencial GCP salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+
     function formatDate(str) {
       if (!str || str === '—') return '—';
       try {
@@ -612,11 +649,7 @@
     async function carregar(provider) {
       setStatus(`Carregando ${provider.toUpperCase()}...`, 'loading');
       try {
-        const res = await fetch(`${API}/list/${provider}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        const data = await apiFetch(`/list/${provider}`);
         counts[provider] = data.resources.length;
         atualizarContadores();
         renderizar([{ provider, resources: data.resources }]);

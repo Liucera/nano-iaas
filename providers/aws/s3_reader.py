@@ -20,7 +20,14 @@ class S3Reader(CloudProvider):
         """Autentica usando profile AWS ou variaveis de ambiente."""
         try:
             import os
-            if os.environ.get('AWS_ACCESS_KEY_ID'):
+            if profile.get('access_key_id') and profile.get('secret_access_key'):
+                self.session = boto3.Session(
+                    aws_access_key_id=profile['access_key_id'],
+                    aws_secret_access_key=profile['secret_access_key'],
+                    aws_session_token=profile.get('session_token'),
+                    region_name=profile.get('region_name') or os.environ.get('AWS_DEFAULT_REGION'),
+                )
+            elif os.environ.get('AWS_ACCESS_KEY_ID'):
                 self.session = boto3.Session()
             else:
                 mode = profile.get('mode', 'cli')

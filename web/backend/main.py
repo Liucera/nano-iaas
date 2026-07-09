@@ -1,6 +1,8 @@
 import sys
 import os
 import json
+from collections import defaultdict, deque
+from time import monotonic
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -8,8 +10,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 import boto3
 import psycopg2
 import psycopg2.extras
+from botocore.exceptions import ClientError
+from azure.core.exceptions import AzureError
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -17,8 +21,9 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from cryptography.fernet import Fernet
 
-from providers.gcp.gcs_reader_mock import GCSReaderMock
-from providers.azure.blob_reader_mock import BlobReaderMock
+from google.api_core.exceptions import GoogleAPIError
+from providers.gcp.gcs_reader import GCSReader
+from providers.azure.blob_reader import BlobReader
 from providers.aws.s3_reader import S3Reader
 
 # ── Configuracoes de seguranca ──────────────────────────────
@@ -33,19 +38,17 @@ ALGORITHM = "HS256"
 TOKEN_EXPIRA_EM = 60  # minutos
 
 PLANOS_VALIDOS = ("gratuito", "popular", "premium")
+PROVIDERS_VALIDOS = ("gcp", "azure", "aws")
+LOGIN_MAX_TENTATIVAS = 5
+LOGIN_JANELA_SEGUNDOS = 300
+_tentativas_login = defaultdict(deque)
 
 # ── Chave de criptografia das credenciais de nuvem dos clientes ──
 def obter_chave_criptografia():
-    """
-    Le a chave Fernet a partir do Secrets Manager (producao) ou de uma
-    variavel de ambiente local (desenvolvimento).
-    """
     secret_arn = os.environ.get("NANO_IAAS_ENCRYPTION_KEY_ARN")
     if secret_arn:
         client = boto3.client("secretsmanager")
         resposta = client.get_secret_value(SecretId=secret_arn)
-        # A chave e armazenada como base64 (32 bytes aleatorios); Fernet exige
-        # que a chave seja urlsafe-base64 de 32 bytes.
         valor = resposta["SecretString"]
         return _normalizar_chave_fernet(valor)
 
@@ -59,12 +62,9 @@ def obter_chave_criptografia():
     )
 
 def _normalizar_chave_fernet(valor: str) -> bytes:
-    """Garante que a chave esteja no formato urlsafe-base64 exigido pelo Fernet."""
     import base64
     bruto = base64.b64decode(valor) if _parece_base64_padrao(valor) else valor.encode()
     if len(bruto) != 32:
-        # Deriva 32 bytes de forma deterministica caso o valor recebido nao
-        # tenha exatamente o tamanho esperado.
         import hashlib
         bruto = hashlib.sha256(bruto).digest()
     return base64.urlsafe_b64encode(bruto)
@@ -118,7 +118,6 @@ def conectar_db():
     )
 
 def garantir_tabelas():
-    """Cria as tabelas necessarias caso ainda nao existam. Chamado uma vez ao iniciar o app."""
     conn = conectar_db()
     try:
         with conn.cursor() as cur:
@@ -158,11 +157,6 @@ def garantir_tabelas():
         conn.close()
 
 def migrar_admin_inicial():
-    """
-    Garante que exista uma conta 'admin@nano-iaas.com' com is_admin=true,
-    usando o mesmo hash que ja estava fixo no codigo (preserva a senha atual).
-    So insere se a tabela de usuarios ainda estiver vazia de admins.
-    """
     conn = conectar_db()
     try:
         with conn.cursor() as cur:
@@ -221,6 +215,25 @@ def criar_usuario(email: str, senha_hash: str, plano: str = "gratuito"):
             novo = cur.fetchone()
         conn.commit()
         return novo
+    finally:
+        conn.close()
+
+def atualizar_plano_usuario(user_id: int, plano: str):
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET plano = %s
+                WHERE id = %s
+                RETURNING id, email, plano, is_admin
+                """,
+                (plano, user_id),
+            )
+            usuario = cur.fetchone()
+        conn.commit()
+        return usuario
     finally:
         conn.close()
 
@@ -341,6 +354,9 @@ class CadastroRequest(BaseModel):
     senha: str
     plano: str = "gratuito"
 
+class PlanoRequest(BaseModel):
+    plano: str
+
 class CredencialAWS(BaseModel):
     access_key_id: str
     secret_access_key: str
@@ -364,8 +380,28 @@ def criar_token(dados: dict):
     copia.update({"exp": expira})
     return jwt.encode(copia, SECRET_KEY, algorithm=ALGORITHM)
 
+def chave_rate_limit_login(request: Request, email: str) -> str:
+    ip = request.client.host if request.client else "desconhecido"
+    return f"{ip}:{email.lower()}"
+
+def verificar_rate_limit_login(chave: str):
+    agora = monotonic()
+    tentativas = _tentativas_login[chave]
+    while tentativas and agora - tentativas[0] > LOGIN_JANELA_SEGUNDOS:
+        tentativas.popleft()
+    if len(tentativas) >= LOGIN_MAX_TENTATIVAS:
+        raise HTTPException(
+            status_code=429,
+            detail="Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+        )
+
+def registrar_falha_login(chave: str):
+    _tentativas_login[chave].append(monotonic())
+
+def limpar_falhas_login(chave: str):
+    _tentativas_login.pop(chave, None)
+
 def usuario_atual(token: str = Depends(oauth2_scheme)):
-    """Retorna o registro completo do usuario logado (id, email, plano, is_admin)."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("uid")
@@ -396,13 +432,19 @@ def cadastro(dados: CadastroRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/login", response_model=Token)
-def login(form: OAuth2PasswordRequestForm = Depends()):
+def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
+    chave_login = chave_rate_limit_login(request, form.username)
+    verificar_rate_limit_login(chave_login)
+
     usuario = buscar_usuario_por_email(form.username)
     if not usuario:
+        registrar_falha_login(chave_login)
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
     if not verificar_senha(form.password, usuario["senha_hash"]):
+        registrar_falha_login(chave_login)
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
 
+    limpar_falhas_login(chave_login)
     token = criar_token({"sub": usuario["email"], "uid": usuario["id"]})
     return {"access_token": token, "token_type": "bearer"}
 
@@ -414,6 +456,18 @@ def meus_dados(usuario=Depends(usuario_atual)):
         "plano": usuario["plano"],
         "is_admin": usuario["is_admin"],
         "providers_configurados": providers,
+    }
+
+@app.patch("/me/plano")
+def atualizar_meu_plano(dados: PlanoRequest, usuario=Depends(usuario_atual)):
+    if dados.plano not in PLANOS_VALIDOS:
+        raise HTTPException(status_code=400, detail="Plano invalido")
+    atualizado = atualizar_plano_usuario(usuario["id"], dados.plano)
+    registrar_acesso(usuario["email"], "PLANO", "-", "-", f"plano {dados.plano}")
+    return {
+        "email": atualizado["email"],
+        "plano": atualizado["plano"],
+        "is_admin": atualizado["is_admin"],
     }
 
 # ── Rotas de gerenciamento de credenciais de nuvem ────────────
@@ -441,28 +495,41 @@ def obter_provider_autenticado(provider: str, usuario: dict):
     Retorna uma instancia autenticada do provider solicitado, usando as
     credenciais PROPRIAS do usuario logado. Excecao: a conta admin, se nao
     tiver credenciais cadastradas, usa as credenciais do sistema (IAM Role
-    da task, para AWS) como fallback, preservando o comportamento anterior.
+    da task para AWS; connection string do sistema para Azure) como fallback.
     """
     credencial = buscar_credencial(usuario["id"], provider)
 
     if provider == "gcp":
-        p = GCSReaderMock()
-        p.authenticate(credencial or {})
+        p = GCSReader()
+        if credencial:
+            ok = p.authenticate(credencial)
+        elif usuario["is_admin"]:
+            ok = p.authenticate({})
+        else:
+            raise ValueError("Nenhuma credencial GCP cadastrada para este usuario")
+        if not ok:
+            raise ValueError("Falha ao autenticar no GCP com as credenciais fornecidas")
         return p
 
     if provider == "azure":
-        p = BlobReaderMock()
-        p.authenticate(credencial or {})
+        p = BlobReader()
+        if credencial:
+            ok = p.authenticate(credencial)
+        elif usuario["is_admin"]:
+            # Fallback: conta admin sem credenciais proprias usa a connection
+            # string do sistema (variavel de ambiente AZURE_STORAGE_CONNECTION_STRING)
+            ok = p.authenticate({})
+        else:
+            raise ValueError("Nenhuma credencial Azure cadastrada para este usuario")
+        if not ok:
+            raise ValueError("Falha ao autenticar no Azure com as credenciais fornecidas")
         return p
 
     if provider == "aws":
         p = S3Reader()
         if credencial:
-            os.environ["AWS_ACCESS_KEY_ID"] = credencial["access_key_id"]
-            os.environ["AWS_SECRET_ACCESS_KEY"] = credencial["secret_access_key"]
-            p.authenticate({'mode': 'env'})
+            p.authenticate(credencial)
         elif usuario["is_admin"]:
-            # Fallback: conta admin sem credenciais proprias usa a IAM Role da task
             p.authenticate({'mode': 'env'})
         else:
             raise ValueError("Nenhuma credencial AWS cadastrada para este usuario")
@@ -470,18 +537,29 @@ def obter_provider_autenticado(provider: str, usuario: dict):
 
     raise ValueError("Provider não encontrado")
 
+def responder_erro_operacional(erro: Exception):
+    if isinstance(erro, ValueError):
+        raise HTTPException(status_code=400, detail=str(erro))
+    if isinstance(erro, (ClientError, AzureError, GoogleAPIError)):
+        raise HTTPException(status_code=502, detail="Falha ao consultar o provider de nuvem")
+    raise HTTPException(status_code=500, detail="Erro interno ao processar a solicitacao")
+
 @app.get("/list/{provider}")
 def list_resources(provider: str, usuario=Depends(usuario_atual)):
+    if provider not in PROVIDERS_VALIDOS:
+        raise HTTPException(status_code=404, detail="Provider não encontrado")
     try:
         p = obter_provider_autenticado(provider, usuario)
         resources = list(p.list_resources())
         registrar_acesso(usuario["email"], "LIST", provider, "-", f"{len(resources)} recursos")
         return {"provider": provider, "resources": resources}
     except Exception as e:
-        return {"error": str(e)}
+        responder_erro_operacional(e)
 
 @app.get("/read/{provider}/{bucket}")
 def read_resource(provider: str, bucket: str, usuario=Depends(usuario_atual)):
+    if provider not in PROVIDERS_VALIDOS:
+        raise HTTPException(status_code=404, detail="Provider não encontrado")
     try:
         p = obter_provider_autenticado(provider, usuario)
 
@@ -493,7 +571,7 @@ def read_resource(provider: str, bucket: str, usuario=Depends(usuario_atual)):
         registrar_acesso(usuario["email"], "READ", provider, bucket, f"{len(records)} registros")
         return {"provider": provider, "bucket": bucket, "records": records}
     except Exception as e:
-        return {"error": str(e)}
+        responder_erro_operacional(e)
 
 @app.get("/audit")
 def ver_logs(usuario=Depends(usuario_atual)):
@@ -501,4 +579,4 @@ def ver_logs(usuario=Depends(usuario_atual)):
         logs = buscar_logs_auditoria(limite=50)
         return {"logs": logs}
     except Exception as e:
-        return {"logs": [], "error": str(e)}
+        responder_erro_operacional(e)

@@ -13,6 +13,12 @@ output "storage_account_primary_endpoint" {
   value       = azurerm_storage_account.nano_iaas.primary_blob_endpoint
 }
 
+output "storage_connection_string" {
+  description = "Connection string da storage account (sensivel)"
+  value       = azurerm_storage_account.nano_iaas.primary_connection_string
+  sensitive   = true
+}
+
 output "container_data" {
   description = "Nome do container de dados"
   value       = azurerm_storage_container.nano_iaas_data.name
