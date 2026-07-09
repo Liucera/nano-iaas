@@ -39,11 +39,38 @@ terraform apply -var="enable_https=true"
 
 ---
 
-## O que e o Nano-IaaS?
+## O que é o Nano-IaaS?
 
-O **Nano-IaaS** e uma plataforma web de leitura e auditoria de dados multi-cloud. Permite que equipes acessem dados armazenados em **AWS S3**, **Google Cloud Storage** e **Azure Blob Storage** em uma unica interface segura, sem precisar de acesso direto as clouds.
+O **Nano-IaaS** conecta **AWS S3**, **Azure Blob Storage** e **Google Cloud Storage** em um painel único, seguro, auditável e somente leitura.
 
-> Read-only by design - nenhuma operacao de escrita ou delecao e permitida.
+> Read-only by design - nenhuma operação de escrita ou deleção e permitida.
+
+---
+
+## Posicionamento
+
+O Nano-IaaS não é uma substituição para AWS, Azure ou Google Cloud.
+
+A proposta do projeto é oferecer uma camada web, multiusuário, segura e auditável para leitura de dados em ambientes cloud.
+
+A plataforma atua em modo read-only, permitindo listagem e leitura de recursos sem operações de escrita, alteração ou exclusão.
+
+Na Beta, o Dashboard/API usa providers reais para AWS S3 (`boto3`), Azure Blob Storage (`azure-storage-blob`) e Google Cloud Storage (`google-cloud-storage`). O CLI usa AWS real, enquanto GCP e Azure ainda estão em modo mock/dev.
+
+---
+
+## Status dos providers
+
+| Superfície | AWS | GCP | Azure |
+|---|---|---|---|
+| Dashboard/API | Real via `boto3` | Real via `google-cloud-storage` | Real via `azure-storage-blob` |
+| CLI | Real via `boto3` | Mock/dev | Mock/dev |
+
+O Dashboard/API está conectado aos providers reais para AWS S3, Azure Blob Storage e Google Cloud Storage. O CLI ainda é parcial: AWS usa o provider real, enquanto GCP e Azure continuam apontando para mocks de desenvolvimento.
+
+Observação técnica interna da Beta: o Dashboard/API é multi-cloud real. O CLI ainda está em consolidação para GCP e Azure.
+
+A promessa de segurança permanece read-only: os providers devem apenas listar recursos e ler objetos/blobs. Não há operações de escrita, deleção ou alteração de recursos nas nuvens.
 
 ---
 
