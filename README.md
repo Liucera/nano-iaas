@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://app.nano-iaas.com.br/logo.svg" alt="Nano-IaaS" width="400"/>
+  <img src="./docs/logo.svg" alt="Nano-IaaS" width="400"/>
   
   # Nano-IaaS
   
