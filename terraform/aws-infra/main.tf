@@ -666,13 +666,26 @@ resource "aws_ecs_task_definition" "nano_iaas_backend" {
       ]
       environment = [
         { name = "DATABASE_SECRET_ARN", value = aws_secretsmanager_secret.db_credentials.arn },
-        { name = "AWS_REGION", value = var.aws_region }
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS", value = "10" },
+        { name = "LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS", value = "5" },
+        { name = "LOGIN_RATE_LIMIT_WINDOW_SECONDS", value = "300" },
+        { name = "LOGIN_RATE_LIMIT_BLOCK_SECONDS", value = "900" },
+        { name = "LOGIN_RATE_LIMIT_RETENTION_SECONDS", value = "86400" },
+        { name = "LOGIN_TRUST_PROXY_HEADERS", value = "true" }
       ]
-      secrets = [
-        { name = "NANO_IAAS_SECRET_KEY", valueFrom = aws_secretsmanager_secret.jwt_secret.arn },
-        { name = "NANO_IAAS_ENCRYPTION_KEY", valueFrom = aws_secretsmanager_secret.credentials_encryption_key.arn },
-        { name = "AZURE_STORAGE_CONNECTION_STRING", valueFrom = data.aws_secretsmanager_secret.azure_connection_string.arn }
-      ]
+      secrets = concat(
+        [
+          { name = "NANO_IAAS_SECRET_KEY", valueFrom = aws_secretsmanager_secret.jwt_secret.arn },
+          { name = "NANO_IAAS_ENCRYPTION_KEY", valueFrom = aws_secretsmanager_secret.credentials_encryption_key.arn }
+        ],
+        var.enable_azure_system_fallback ? [
+          {
+            name      = "AZURE_STORAGE_CONNECTION_STRING"
+            valueFrom = data.aws_secretsmanager_secret.azure_connection_string.arn
+          }
+        ] : []
+      )
       logConfiguration = {
         logDriver = "awslogs"
         options = {

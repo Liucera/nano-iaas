@@ -52,3 +52,8 @@ variable "acm_certificate_arn" {
   default     = ""
 }
 
+variable "enable_azure_system_fallback" {
+  description = "Habilita o fallback sistêmico do Azure na task ECS"
+  type        = bool
+  default     = false
+}
