@@ -25,7 +25,7 @@ variable "db_username" {
 variable "backend_image_uri" {
   description = "URI completa da imagem Docker do backend no ECR."
   type        = string
-  default     = "488709146598.dkr.ecr.us-east-1.amazonaws.com/nano-iaas-backend-dev:latest"
+  default     = "488709146598.dkr.ecr.us-east-1.amazonaws.com/nano-iaas-backend-dev:git-b7a22a2"
 }
 
 variable "api_domain_name" {
