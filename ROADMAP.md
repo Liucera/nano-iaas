@@ -22,6 +22,8 @@
 - Testes automatizados locais passando
 - Pagamento Pix manual com chave configurável por ambiente
 - Domínio próprio definido: app.nano-iaas.com.br e api.nano-iaas.com.br
+- API pública protegida por HTTPS com certificado ACM emitido e validado; listener HTTP 80 redirecionando para HTTPS 443 e listener HTTPS encaminhando para o target group da API
+- Endpoint `/docs` validado com HTTP 200; a rota `/` retorna 404 por não existir, sem indicar falha de infraestrutura
 - Política read-only mantida: apenas listagem e leitura; sem escrita, delete ou alteração de recursos
 - Tutorial Beta multi-cloud definido para AWS S3, Azure Blob Storage e Google Cloud Storage
 - Posicionamento oficial: camada web multiusuário, segura e auditável; não substitui AWS/Azure/GCP
@@ -35,7 +37,7 @@
 - [ ] Teste operacional real com credenciais Azure
 - [ ] Teste operacional real com credenciais GCP
 - [ ] Resolver ou documentar oficialmente o CLI parcial (AWS real; GCP/Azure mock/dev)
-- [ ] Criar registros DNS no Registro.br e validar o certificado ACM/HTTPS
+- [x] Criar registros DNS no Registro.br e validar o certificado ACM/HTTPS
 - [ ] Restringir a permissão S3 da IAM Role da task (hoje usa Resource "*", mais amplo que o ideal)
 - [x] Preparar certificado ACM e listener HTTPS no Terraform
 - [x] Persistir aceite de termos no cadastro (aceite_termos, versao_termos e data_aceite_termos)
@@ -50,4 +52,4 @@
 
 ## Progresso geral
 
-~99% do MVP concluído. O projeto está pronto para iniciar QA/Beta controlado. Falta principalmente criar/validar os registros DNS no Registro.br, ativar o listener HTTPS depois que o ACM emitir o certificado, validar operacionalmente Azure e GCP com credenciais reais, resolver/documentar o CLI parcial e endurecer a permissão S3 da IAM Role.
+~99% do MVP concluído. O projeto está pronto para iniciar QA/Beta controlado. DNS, certificado ACM e listeners HTTPS da API estão ativos e validados. Falta principalmente validar operacionalmente Azure e GCP com credenciais reais, resolver/documentar o CLI parcial e endurecer a permissão S3 da IAM Role.
