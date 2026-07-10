@@ -685,8 +685,13 @@
           body: (() => { const f = new FormData(); f.append('username', usuario); f.append('password', senha); return f; })()
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const falha = new Error(data.detail || 'Falha ao realizar login');
+          falha.status = res.status;
+          falha.retryAfter = res.headers.get('Retry-After');
+          throw falha;
+        }
 
         token = data.access_token;
         sessionStorage.setItem('nano_iaas_token', token);
@@ -694,6 +699,15 @@
         document.getElementById('tela-dashboard').style.display = 'block';
         carregarTodos();
       } catch (e) {
+        if (e.status === 429) {
+          const segundos = Number.parseInt(e.retryAfter, 10);
+          erro.textContent = e.message;
+          if (Number.isFinite(segundos) && segundos > 0) {
+            erro.textContent += ` Aguarde ${segundos} segundo(s).`;
+          }
+        } else {
+          erro.textContent = 'Usuário ou senha incorretos.';
+        }
         erro.style.display = 'block';
       }
     }

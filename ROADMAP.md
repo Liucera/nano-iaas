@@ -31,7 +31,7 @@
 
 ## Pendente antes do lançamento (~5%)
 
-- [x] Limite de tentativas de login (proteção contra força bruta)
+- [x] Proteção distribuída contra força bruta no login com PostgreSQL, limites por conta e por conta + IP (substitui contador em memória; configuração das variáveis no ECS pendente)
 - [x] Adicionar checkbox de aceite dos Termos de Uso e Política de Privacidade no cadastro
 - [ ] Revisão jurídica futura da Política de Privacidade e Termos de Uso
 - [ ] Teste operacional real com credenciais Azure

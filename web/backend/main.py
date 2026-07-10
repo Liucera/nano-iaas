@@ -1,7 +1,11 @@
 import sys
 import os
 import json
-from collections import defaultdict, deque
+import hmac
+import ipaddress
+import math
+import threading
+from hashlib import sha256
 from time import monotonic
 from datetime import datetime, timedelta
 
@@ -40,10 +44,37 @@ TOKEN_EXPIRA_EM = 60  # minutos
 PLANOS_VALIDOS = ("gratuito", "popular", "premium")
 PLANOS_VALORES = {"gratuito": 0, "popular": 100, "premium": 1000}
 PROVIDERS_VALIDOS = ("gcp", "azure", "aws")
-LOGIN_MAX_TENTATIVAS = 5
-LOGIN_JANELA_SEGUNDOS = 300
+def _env_int(nome: str, padrao: int) -> int:
+    try:
+        valor = int(os.environ.get(nome, str(padrao)))
+    except ValueError as exc:
+        raise RuntimeError(f"{nome} deve ser um numero inteiro") from exc
+    if valor < 1:
+        raise RuntimeError(f"{nome} deve ser maior que zero")
+    return valor
+
+def _env_bool(nome: str, padrao: bool = False) -> bool:
+    valor = os.environ.get(nome)
+    if valor is None:
+        return padrao
+    normalizado = valor.strip().casefold()
+    if normalizado in {"1", "true", "yes", "on"}:
+        return True
+    if normalizado in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{nome} deve ser true ou false")
+
+LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS = _env_int("LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS", 10)
+LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS = _env_int("LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS", 5)
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = _env_int("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 300)
+LOGIN_RATE_LIMIT_BLOCK_SECONDS = _env_int("LOGIN_RATE_LIMIT_BLOCK_SECONDS", 900)
+LOGIN_RATE_LIMIT_RETENTION_SECONDS = _env_int("LOGIN_RATE_LIMIT_RETENTION_SECONDS", 86400)
+LOGIN_TRUST_PROXY_HEADERS = _env_bool("LOGIN_TRUST_PROXY_HEADERS", False)
 VERSAO_TERMOS_ATUAL = "beta-2026-07"
-_tentativas_login = defaultdict(deque)
+HASH_SENHA_FICTICIA = "$2b$12$eDn400ftB4k.B.6YDEPycu3a4hKrjVCY8mQE39S2LL7XWEID36Rt2"
+_chave_rate_limit = None
+_ultima_limpeza_rate_limit = 0.0
+_lock_limpeza_rate_limit = threading.Lock()
 
 # ── Chave de criptografia das credenciais de nuvem dos clientes ──
 def obter_chave_criptografia():
@@ -169,6 +200,20 @@ def garantir_tabelas():
                     criado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
                     aprovado_em TIMESTAMPTZ
                 );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    attempt_key VARCHAR(64) PRIMARY KEY,
+                    scope VARCHAR(20) NOT NULL CHECK (scope IN ('account', 'account_ip')),
+                    failure_count INTEGER NOT NULL DEFAULT 0,
+                    window_started_at TIMESTAMPTZ NOT NULL,
+                    blocked_until TIMESTAMPTZ,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_login_attempts_updated_at
+                ON login_attempts (updated_at);
             """)
         conn.commit()
     finally:
@@ -478,26 +523,259 @@ def criar_token(dados: dict):
     copia.update({"exp": expira})
     return jwt.encode(copia, SECRET_KEY, algorithm=ALGORITHM)
 
-def chave_rate_limit_login(request: Request, email: str) -> str:
-    ip = request.client.host if request.client else "desconhecido"
-    return f"{ip}:{email.lower()}"
+def resolver_ip_cliente(request: Request, confiar_proxy: bool | None = None) -> str:
+    confiar = LOGIN_TRUST_PROXY_HEADERS if confiar_proxy is None else confiar_proxy
+    fallback = request.client.host if request.client else "desconhecido"
+    if not confiar:
+        return fallback
 
-def verificar_rate_limit_login(chave: str):
-    agora = monotonic()
-    tentativas = _tentativas_login[chave]
-    while tentativas and agora - tentativas[0] > LOGIN_JANELA_SEGUNDOS:
-        tentativas.popleft()
-    if len(tentativas) >= LOGIN_MAX_TENTATIVAS:
+    encaminhados = request.headers.get("x-forwarded-for", "")
+    for candidato in encaminhados.split(","):
+        candidato = candidato.strip()
+        if not candidato:
+            continue
+        try:
+            return str(ipaddress.ip_address(candidato))
+        except ValueError:
+            continue
+    return fallback
+
+def obter_chave_rate_limit() -> bytes:
+    global _chave_rate_limit
+    if _chave_rate_limit is None:
+        chave_mestra = obter_chave_criptografia()
+        _chave_rate_limit = hmac.new(
+            chave_mestra,
+            b"nano-iaas:login-rate-limit:key",
+            sha256,
+        ).digest()
+    return _chave_rate_limit
+
+def gerar_chaves_rate_limit(username: str, client_ip: str) -> dict[str, str]:
+    normalizado = username.strip().casefold()
+    chave = obter_chave_rate_limit()
+
+    def assinar(conteudo: str) -> str:
+        return hmac.new(chave, conteudo.encode(), sha256).hexdigest()
+
+    return {
+        "account": assinar(f"login-account:{normalizado}"),
+        "account_ip": assinar(f"login-account-ip:{normalizado}:{client_ip}"),
+    }
+
+def _retry_after(blocked_until, agora) -> int:
+    return max(1, math.ceil((blocked_until - agora).total_seconds()))
+
+def _limite_por_escopo(scope: str) -> int:
+    if scope == "account":
+        return LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS
+    if scope == "account_ip":
+        return LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS
+    raise ValueError("Escopo de rate limit invalido")
+
+def verificar_bloqueios_login(chaves: dict[str, str]) -> int | None:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT NOW();")
+            agora = cur.fetchone()[0]
+            maior_retry_after = 0
+
+            for scope, attempt_key in sorted(chaves.items(), key=lambda item: item[1]):
+                cur.execute(
+                    """
+                    SELECT failure_count, window_started_at, blocked_until
+                    FROM login_attempts
+                    WHERE attempt_key = %s
+                    FOR UPDATE
+                    """,
+                    (attempt_key,),
+                )
+                registro = cur.fetchone()
+                if not registro:
+                    continue
+
+                _, window_started_at, blocked_until = registro
+                if blocked_until and blocked_until > agora:
+                    maior_retry_after = max(
+                        maior_retry_after,
+                        _retry_after(blocked_until, agora),
+                    )
+                    continue
+
+                janela_expirada = (
+                    agora >= window_started_at + timedelta(seconds=LOGIN_RATE_LIMIT_WINDOW_SECONDS)
+                )
+                if blocked_until is not None or janela_expirada:
+                    cur.execute(
+                        """
+                        UPDATE login_attempts
+                        SET failure_count = 0,
+                            window_started_at = %s,
+                            blocked_until = NULL,
+                            updated_at = %s
+                        WHERE attempt_key = %s
+                        """,
+                        (agora, agora, attempt_key),
+                    )
+
+        conn.commit()
+        return maior_retry_after or None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def registrar_falhas_login(chaves: dict[str, str]) -> int | None:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT NOW();")
+            agora = cur.fetchone()[0]
+            maior_retry_after = 0
+
+            for scope, attempt_key in sorted(chaves.items(), key=lambda item: item[1]):
+                cur.execute(
+                    """
+                    INSERT INTO login_attempts (
+                        attempt_key, scope, failure_count, window_started_at, updated_at
+                    )
+                    VALUES (%s, %s, 0, %s, %s)
+                    ON CONFLICT (attempt_key) DO NOTHING
+                    """,
+                    (attempt_key, scope, agora, agora),
+                )
+                cur.execute(
+                    """
+                    SELECT failure_count, window_started_at, blocked_until
+                    FROM login_attempts
+                    WHERE attempt_key = %s
+                    FOR UPDATE
+                    """,
+                    (attempt_key,),
+                )
+                failure_count, window_started_at, blocked_until = cur.fetchone()
+
+                if blocked_until and blocked_until > agora:
+                    maior_retry_after = max(
+                        maior_retry_after,
+                        _retry_after(blocked_until, agora),
+                    )
+                    continue
+
+                janela_expirada = (
+                    agora >= window_started_at + timedelta(seconds=LOGIN_RATE_LIMIT_WINDOW_SECONDS)
+                )
+                if blocked_until is not None or janela_expirada:
+                    failure_count = 0
+                    window_started_at = agora
+
+                failure_count += 1
+                novo_bloqueio = None
+                if failure_count >= _limite_por_escopo(scope):
+                    novo_bloqueio = agora + timedelta(seconds=LOGIN_RATE_LIMIT_BLOCK_SECONDS)
+                    maior_retry_after = max(
+                        maior_retry_after,
+                        _retry_after(novo_bloqueio, agora),
+                    )
+
+                cur.execute(
+                    """
+                    UPDATE login_attempts
+                    SET failure_count = %s,
+                        window_started_at = %s,
+                        blocked_until = %s,
+                        updated_at = %s
+                    WHERE attempt_key = %s
+                    """,
+                    (
+                        failure_count,
+                        window_started_at,
+                        novo_bloqueio,
+                        agora,
+                        attempt_key,
+                    ),
+                )
+
+        conn.commit()
+        return maior_retry_after or None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def limpar_falhas_login(chaves: dict[str, str]):
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM login_attempts WHERE attempt_key = ANY(%s);",
+                (list(chaves.values()),),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def limpar_tentativas_login_expiradas():
+    global _ultima_limpeza_rate_limit
+    agora_monotonic = monotonic()
+    if agora_monotonic - _ultima_limpeza_rate_limit < 60:
+        return
+    if not _lock_limpeza_rate_limit.acquire(blocking=False):
+        return
+
+    conn = None
+    try:
+        if monotonic() - _ultima_limpeza_rate_limit < 60:
+            return
+        _ultima_limpeza_rate_limit = monotonic()
+        conn = conectar_db()
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH expirados AS (
+                    SELECT attempt_key
+                    FROM login_attempts
+                    WHERE updated_at < NOW() - (%s * INTERVAL '1 second')
+                    ORDER BY updated_at
+                    LIMIT 100
+                )
+                DELETE FROM login_attempts
+                WHERE attempt_key IN (SELECT attempt_key FROM expirados)
+                """,
+                (LOGIN_RATE_LIMIT_RETENTION_SECONDS,),
+            )
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+    finally:
+        if conn is not None:
+            conn.close()
+        _lock_limpeza_rate_limit.release()
+
+def executar_protecao_login(operacao, *args):
+    try:
+        return operacao(*args)
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(
-            status_code=429,
-            detail="Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
-        )
+            status_code=503,
+            detail="Servico de autenticacao temporariamente indisponivel",
+        ) from None
 
-def registrar_falha_login(chave: str):
-    _tentativas_login[chave].append(monotonic())
-
-def limpar_falhas_login(chave: str):
-    _tentativas_login.pop(chave, None)
+def erro_muitas_tentativas(retry_after: int) -> HTTPException:
+    return HTTPException(
+        status_code=429,
+        detail="Muitas tentativas de login. Tente novamente mais tarde.",
+        headers={"Retry-After": str(max(1, retry_after))},
+    )
 
 def obter_config_pix():
     return {
@@ -551,18 +829,28 @@ def cadastro(dados: CadastroRequest):
 
 @app.post("/login", response_model=Token)
 def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
-    chave_login = chave_rate_limit_login(request, form.username)
-    verificar_rate_limit_login(chave_login)
+    client_ip = resolver_ip_cliente(request)
+    chaves_login = gerar_chaves_rate_limit(form.username, client_ip)
+    limpar_tentativas_login_expiradas()
+
+    retry_after = executar_protecao_login(verificar_bloqueios_login, chaves_login)
+    if retry_after:
+        raise erro_muitas_tentativas(retry_after)
 
     usuario = buscar_usuario_por_email(form.username)
-    if not usuario:
-        registrar_falha_login(chave_login)
-        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
-    if not verificar_senha(form.password, usuario["senha_hash"]):
-        registrar_falha_login(chave_login)
+    if usuario:
+        credenciais_validas = verificar_senha(form.password, usuario["senha_hash"])
+    else:
+        verificar_senha(form.password, HASH_SENHA_FICTICIA)
+        credenciais_validas = False
+
+    if not credenciais_validas:
+        retry_after = executar_protecao_login(registrar_falhas_login, chaves_login)
+        if retry_after:
+            raise erro_muitas_tentativas(retry_after)
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
 
-    limpar_falhas_login(chave_login)
+    executar_protecao_login(limpar_falhas_login, chaves_login)
     token = criar_token({"sub": usuario["email"], "uid": usuario["id"]})
     return {"access_token": token, "token_type": "bearer"}
 
