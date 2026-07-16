@@ -350,15 +350,31 @@ def test_openapi_contem_novos_campos_e_schema_explicito_de_me():
     }
 
 
-class LegalLinksParser(HTMLParser):
+class FrontendParser(HTMLParser):
     def __init__(self):
         super().__init__()
+        self.forms = {}
+        self.inputs = {}
+        self.labels_for = set()
+        self.buttons = {}
         self.links = {}
+        self.select_ids = set()
         self.text_parts = []
 
     def handle_starttag(self, tag, attrs):
-        if tag == "a":
-            attributes = dict(attrs)
+        attributes = dict(attrs)
+        element_id = attributes.get("id")
+        if tag == "form" and element_id:
+            self.forms[element_id] = attributes
+        elif tag == "input" and element_id:
+            self.inputs[element_id] = attributes
+        elif tag == "label" and attributes.get("for"):
+            self.labels_for.add(attributes["for"])
+        elif tag == "button" and element_id:
+            self.buttons[element_id] = attributes
+        elif tag == "select" and element_id:
+            self.select_ids.add(element_id)
+        elif tag == "a":
             href = attributes.get("href")
             if href in {"https://nano-iaas.com.br/termos", "https://nano-iaas.com.br/privacidade"}:
                 self.links[href] = attributes
@@ -367,33 +383,112 @@ class LegalLinksParser(HTMLParser):
         self.text_parts.append(data)
 
 
-@pytest.mark.frontend_static
-def test_frontend_contrato_legal_links_payload_e_fallback():
-    html = (Path(__file__).parents[1] / "docs" / "index.html").read_text()
-    parser = LegalLinksParser()
+def frontend_html():
+    return (Path(__file__).parents[1] / "docs" / "index.html").read_text()
+
+
+def frontend_parser(html):
+    parser = FrontendParser()
     parser.feed(html)
+    return parser
+
+
+def cadastro_source(html):
+    return html[
+        html.index("async function fazerCadastro()"):
+        html.index("async function exibirConfiguracoes()")
+    ]
+
+
+@pytest.mark.frontend_static
+def test_frontend_cadastro_usa_form_e_campos_acessiveis():
+    html = frontend_html()
+    parser = frontend_parser(html)
+    assert "auth-form" in parser.forms
+    assert '<link rel="icon" href="./logo.svg" type="image/svg+xml">' in html
+    assert parser.buttons["btn-submit-auth"]["type"] == "submit"
+    assert parser.inputs["input-email"]["type"] == "email"
+    assert parser.inputs["input-email"]["autocomplete"] == "email"
+    assert parser.inputs["input-usuario"]["type"] == "text"
+    assert parser.inputs["input-usuario"]["autocomplete"] == "username"
+    assert parser.inputs["input-senha"]["autocomplete"] == "current-password"
+    assert {
+        "input-full-name", "input-usuario", "input-email", "input-senha",
+        "input-aceite-termos", "input-aceite-privacidade",
+    } <= parser.labels_for
+    assert parser.inputs["input-aceite-termos"]["type"] == "checkbox"
+    assert parser.inputs["input-aceite-privacidade"]["type"] == "checkbox"
+    assert "input-plano" not in parser.inputs
+    assert "input-plano" not in parser.select_ids
+
+
+@pytest.mark.frontend_static
+def test_frontend_aceites_legais_sao_independentes():
+    html = frontend_html()
+    parser = frontend_parser(html)
     normalized_text = " ".join("".join(parser.text_parts).split())
-    assert "Li e aceito os Termos de Uso e a Política de Privacidade." in normalized_text
-    assert set(parser.links) == {"https://nano-iaas.com.br/termos", "https://nano-iaas.com.br/privacidade"}
+    assert "Li e aceito os Termos de Uso." in normalized_text
+    assert "Li e aceito a Política de Privacidade." in normalized_text
+    assert "Li e aceito os Termos de Uso e a Política de Privacidade." not in normalized_text
+    assert set(parser.links) == {
+        "https://nano-iaas.com.br/termos",
+        "https://nano-iaas.com.br/privacidade",
+    }
     for attributes in parser.links.values():
         assert attributes["target"] == "_blank"
         assert set(attributes["rel"].split()) == {"noopener", "noreferrer"}
-    cadastro_source = html[html.index("async function fazerCadastro()"):html.index("async function exibirConfiguracoes()")]
-    for field in ("aceite_termos", "aceite_privacidade", "terms_version", "privacy_version"):
-        assert re.search(rf"\b{field}\s*:", cadastro_source)
-    assert '"2026-07-15"' in cadastro_source
+
+    source = cadastro_source(html)
+    assert 'const aceiteTermos = document.getElementById("input-aceite-termos").checked;' in source
+    assert 'const aceitePrivacidade = document.getElementById("input-aceite-privacidade").checked;' in source
+    assert re.search(
+        r'if \(!aceiteTermos\) \{.*?aceite os Termos de Uso\..*?return;',
+        source,
+        flags=re.DOTALL,
+    )
+    assert re.search(
+        r'if \(!aceitePrivacidade\) \{.*?aceite a Política de Privacidade\..*?return;',
+        source,
+        flags=re.DOTALL,
+    )
+
+
+@pytest.mark.frontend_static
+def test_frontend_payload_cadastro_separa_aceites_e_omite_plano():
+    html = frontend_html()
+    source = cadastro_source(html)
+    assert "aceite_termos: aceiteTermos" in source
+    assert "aceite_privacidade: aceitePrivacidade" in source
+    assert 'terms_version: "2026-07-15"' in source
+    assert 'privacy_version: "2026-07-15"' in source
+    assert "plano," not in source
+    assert "input-plano" not in source
+    assert '.value.trim().toLowerCase()' in source
     assert "me.full_name || me.email" in html
 
 
 @pytest.mark.frontend_static
-def test_frontend_alterna_visibilidade_do_nome_por_modo():
-    html = (Path(__file__).parents[1] / "docs" / "index.html").read_text()
-    assert 'id="campo-full-name"' in html
-    assert 'style="display:none"' in html
+def test_frontend_submit_evitar_duplicidade_e_preserva_enter():
+    html = frontend_html()
+    assert 'document.getElementById("auth-form").addEventListener("submit", enviarFormularioAuth);' in html
+    assert "event.preventDefault();" in html
+    assert "if (envioAuthEmAndamento) return;" in html
+    assert "botao.disabled = true;" in html
+    assert "botao.disabled = false;" in html
+    assert "onkeydown=" not in html
+
+
+@pytest.mark.frontend_static
+def test_frontend_modos_cadastro_e_login_permanecem_separados():
+    html = frontend_html()
     assert "function alternarModoCadastro()" in html
     assert "function alternarModoLogin()" in html
-    assert 'campoNome.style.display = "block"' in html
-    assert 'campoNome.style.display = "none"' in html
-    assert 'document.getElementById("input-full-name").value = ""' in html
-    assert "if (modoCadastro)" in html
-    assert "fazerCadastro();" in html
+    assert 'document.getElementById("campo-usuario").style.display = "none"' in html
+    assert 'document.getElementById("campo-email").style.display = "block"' in html
+    assert 'document.getElementById("campo-usuario").style.display = "block"' in html
+    assert 'document.getElementById("campo-email").style.display = "none"' in html
+    assert 'document.getElementById("input-senha").autocomplete = "new-password"' in html
+    assert 'document.getElementById("input-senha").autocomplete = "current-password"' in html
+    login_source = html[html.index("async function fazerLogin()"):html.index("function fazerLogout()")]
+    assert "input-usuario" in login_source
+    assert "input-email" not in login_source
