@@ -580,12 +580,16 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
     Statement = [{
       Effect = "Allow"
       Action = ["secretsmanager:GetSecretValue"]
-      Resource = [
-        aws_secretsmanager_secret.db_credentials.arn,
-        aws_secretsmanager_secret.jwt_secret.arn,
-        aws_secretsmanager_secret.credentials_encryption_key.arn,
-        data.aws_secretsmanager_secret.azure_connection_string.arn
-      ]
+      Resource = concat(
+        [
+          aws_secretsmanager_secret.db_credentials.arn,
+          aws_secretsmanager_secret.jwt_secret.arn,
+          aws_secretsmanager_secret.credentials_encryption_key.arn
+        ],
+        var.enable_azure_system_fallback ? [
+          data.aws_secretsmanager_secret.azure_connection_string.arn
+        ] : []
+      )
     }]
   })
 }
@@ -617,11 +621,15 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
     Statement = [{
       Effect = "Allow"
       Action = ["secretsmanager:GetSecretValue"]
-      Resource = [
-        aws_secretsmanager_secret.db_credentials.arn,
-        aws_secretsmanager_secret.credentials_encryption_key.arn,
-        data.aws_secretsmanager_secret.azure_connection_string.arn
-      ]
+      Resource = concat(
+        [
+          aws_secretsmanager_secret.db_credentials.arn,
+          aws_secretsmanager_secret.credentials_encryption_key.arn
+        ],
+        var.enable_azure_system_fallback ? [
+          data.aws_secretsmanager_secret.azure_connection_string.arn
+        ] : []
+      )
     }]
   })
 }
@@ -662,8 +670,11 @@ resource "aws_ecs_task_definition" "nano_iaas_backend" {
       image     = var.backend_image_uri
       essential = true
       portMappings = [
-        { containerPort = 8000, protocol = "tcp" }
+        { containerPort = 8000, hostPort = 8000, protocol = "tcp" }
       ]
+      mountPoints    = []
+      systemControls = []
+      volumesFrom    = []
       environment = [
         { name = "DATABASE_SECRET_ARN", value = aws_secretsmanager_secret.db_credentials.arn },
         { name = "AWS_REGION", value = var.aws_region },
