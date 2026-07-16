@@ -1,5 +1,7 @@
+import json
 import os
 import re
+import subprocess
 import sys
 import types
 from html.parser import HTMLParser
@@ -492,3 +494,228 @@ def test_frontend_modos_cadastro_e_login_permanecem_separados():
     login_source = html[html.index("async function fazerLogin()"):html.index("function fazerLogout()")]
     assert "input-usuario" in login_source
     assert "input-email" not in login_source
+
+
+def frontend_provider_source():
+    html = frontend_html()
+    provider_helper = html[
+        html.index("const detalhesSemCredencial"):
+        html.index("function alternarModoCadastro()")
+    ]
+    dashboard_loaders = html[
+        html.index("function atualizarContadores()"):
+        html.index("function renderizar(providers)")
+    ]
+    return provider_helper + "\n" + dashboard_loaders
+
+
+FRONTEND_PROVIDER_HARNESS = r"""
+const scenario = JSON.parse(process.argv[1]);
+const source = process.argv[2];
+const calls = [];
+const elements = new Map();
+const getElement = (id) => {
+  if (!elements.has(id)) {
+    let textContent = '';
+    const element = { className: '', style: {}, innerHTML: '', value: '' };
+    Object.defineProperty(element, 'textContent', {
+      get: () => textContent,
+      set: (value) => { textContent = String(value); },
+    });
+    elements.set(id, element);
+  }
+  return elements.get(id);
+};
+
+globalThis.document = { getElementById: getElement };
+const API = 'https://api.invalid';
+const counts = { gcp: 0, azure: 0, aws: 0 };
+let token = 'token-temporario-simulado';
+let sessionExpired = false;
+let rendered = null;
+
+function setStatus(message, type) {
+  const status = getElement('status');
+  status.textContent = message;
+  status.className = type || '';
+}
+function fazerLogout() {
+  token = null;
+  sessionExpired = true;
+}
+function renderizar(providers) {
+  rendered = providers;
+}
+function responseFor(provider) {
+  return scenario.responses[provider];
+}
+
+globalThis.fetch = async (url, options = {}) => {
+  const provider = url.split('/').pop();
+  const configured = responseFor(provider);
+  calls.push({ provider, authorization: options.headers && options.headers.Authorization });
+  return {
+    status: configured.status,
+    ok: configured.status >= 200 && configured.status < 300,
+    json: async () => configured.body,
+  };
+};
+
+eval(`${source}\nglobalThis.frontendApi = { carregarProvider, carregar, carregarTodos };`);
+
+(async () => {
+  const result = {};
+  try {
+    if (scenario.action === 'helper') {
+      result.data = await frontendApi.carregarProvider(scenario.provider);
+    } else if (scenario.action === 'individual') {
+      await frontendApi.carregar(scenario.provider);
+    } else {
+      await frontendApi.carregarTodos();
+      if (scenario.action === 'reload') {
+        await frontendApi.carregarTodos();
+      }
+    }
+  } catch (error) {
+    result.error = error.message;
+  }
+  result.calls = calls;
+  result.counts = {
+    gcp: getElement('cnt-gcp').textContent,
+    azure: getElement('cnt-azure').textContent,
+    aws: getElement('cnt-aws').textContent,
+    total: getElement('cnt-total').textContent,
+  };
+  result.status = getElement('status').textContent;
+  result.statusClass = getElement('status').className;
+  result.sessionExpired = sessionExpired;
+  result.tokenPreserved = token !== null;
+  result.rendered = rendered;
+  process.stdout.write(JSON.stringify(result));
+})().catch((error) => {
+  process.stderr.write(error.stack);
+  process.exit(1);
+});
+"""
+
+
+def provider_response(status, body):
+    return {"status": status, "body": body}
+
+
+def sem_credencial(provider):
+    nomes = {"aws": "AWS", "gcp": "GCP", "azure": "Azure"}
+    return provider_response(
+        400,
+        {"detail": f"Nenhuma credencial {nomes[provider]} cadastrada para este usuario"},
+    )
+
+
+def executar_cenario_frontend(action, responses, provider=None):
+    scenario = {"action": action, "responses": responses, "provider": provider}
+    completed = subprocess.run(
+        ["node", "-e", FRONTEND_PROVIDER_HARNESS, json.dumps(scenario), frontend_provider_source()],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return json.loads(completed.stdout)
+
+
+@pytest.mark.frontend_static
+@pytest.mark.parametrize("provider", ["aws", "gcp", "azure"])
+def test_frontend_provider_sem_credencial_retorna_estado_vazio(provider):
+    result = executar_cenario_frontend("helper", {provider: sem_credencial(provider)}, provider)
+    assert result["data"] == {"provider": provider, "resources": []}
+    assert result["calls"][0]["authorization"] == "Bearer token-temporario-simulado"
+
+
+@pytest.mark.frontend_static
+def test_frontend_todos_sem_credenciais_mantem_dashboard_com_contagens_zero():
+    responses = {provider: sem_credencial(provider) for provider in ("aws", "gcp", "azure")}
+    result = executar_cenario_frontend("all", responses)
+    assert result["counts"] == {"gcp": "0", "azure": "0", "aws": "0", "total": "0"}
+    assert result["statusClass"] == "success"
+    assert "Nenhum recurso disponível" in result["status"]
+    assert "TypeError" not in result["status"]
+    assert len(result["calls"]) == 3
+
+
+@pytest.mark.frontend_static
+def test_frontend_cenario_misto_combina_recursos_e_estados_vazios():
+    responses = {
+        "gcp": provider_response(200, {"provider": "gcp", "resources": [{"name": "bucket-teste"}]}),
+        "azure": sem_credencial("azure"),
+        "aws": sem_credencial("aws"),
+    }
+    result = executar_cenario_frontend("all", responses)
+    assert result["counts"] == {"gcp": "1", "azure": "0", "aws": "0", "total": "1"}
+    assert "1 recursos carregados" in result["status"]
+
+
+@pytest.mark.frontend_static
+@pytest.mark.parametrize(
+    ("status", "detail"),
+    [
+        (400, "Falha ao autenticar no AWS com as credenciais fornecidas"),
+        (400, "Erro de validação desconhecido"),
+        (502, "Falha ao consultar o provider de nuvem"),
+    ],
+)
+def test_frontend_erros_nao_esperados_continuam_visiveis(status, detail):
+    result = executar_cenario_frontend(
+        "helper", {"aws": provider_response(status, {"detail": detail})}, "aws"
+    )
+    assert result["error"] == detail
+    assert "data" not in result
+
+
+@pytest.mark.frontend_static
+def test_frontend_http_401_expira_sessao():
+    result = executar_cenario_frontend(
+        "helper", {"aws": provider_response(401, {"detail": "Token inválido"})}, "aws"
+    )
+    assert result["error"] == "Sessão expirada"
+    assert result["sessionExpired"] is True
+    assert result["tokenPreserved"] is False
+
+
+@pytest.mark.frontend_static
+@pytest.mark.parametrize("body", [None, {}, {"resources": {}}, {"resources": "invalido"}])
+def test_frontend_resposta_200_malformada_gera_erro_controlado(body):
+    result = executar_cenario_frontend("helper", {"aws": provider_response(200, body)}, "aws")
+    assert result["error"] == "Resposta inválida de AWS: resources deve ser uma lista"
+    assert "TypeError" not in result["error"]
+
+
+@pytest.mark.frontend_static
+def test_frontend_carga_individual_usa_mesma_regra_de_estado_vazio():
+    result = executar_cenario_frontend("individual", {"aws": sem_credencial("aws")}, "aws")
+    assert result["counts"]["aws"] == "0"
+    assert result["status"] == "0 recursos carregados — AWS"
+    assert result["statusClass"] == "success"
+
+
+@pytest.mark.frontend_static
+def test_frontend_recarga_com_token_preservado_repete_um_request_por_provider():
+    responses = {provider: sem_credencial(provider) for provider in ("aws", "gcp", "azure")}
+    result = executar_cenario_frontend("reload", responses)
+    assert result["tokenPreserved"] is True
+    assert result["sessionExpired"] is False
+    assert result["counts"] == {"gcp": "0", "azure": "0", "aws": "0", "total": "0"}
+    assert {provider: [call["provider"] for call in result["calls"]].count(provider) for provider in responses} == {
+        "aws": 2, "gcp": 2, "azure": 2,
+    }
+
+
+@pytest.mark.frontend_static
+def test_frontend_fluxos_individual_e_agregado_usam_helper_central():
+    html = frontend_html()
+    individual = html[html.index("async function carregar(provider)"):html.index("function sessaoExpirada()")]
+    aggregate = html[html.index("async function carregarTodos()"):html.index("function renderizar(providers)")]
+    assert "await carregarProvider(provider)" in individual
+    assert "carregarProvider('gcp')" in aggregate
+    assert "carregarProvider('azure')" in aggregate
+    assert "carregarProvider('aws')" in aggregate
+    assert "Array.isArray(data.resources)" in html

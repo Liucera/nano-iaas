@@ -627,6 +627,36 @@
 
     async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
 
+    const detalhesSemCredencial = {
+      aws: 'Nenhuma credencial AWS cadastrada para este usuario',
+      gcp: 'Nenhuma credencial GCP cadastrada para este usuario',
+      azure: 'Nenhuma credencial Azure cadastrada para este usuario',
+    };
+
+    async function carregarProvider(provider) {
+      const resposta = await fetch(`${API}/list/${provider}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await resposta.json().catch(() => ({}));
+      const detalhe = data && typeof data === 'object' ? data.detail : undefined;
+      const erro = data && typeof data === 'object' ? data.error : undefined;
+
+      if (resposta.status === 401) {
+        sessaoExpirada();
+        throw new Error('Sessão expirada');
+      }
+      if (resposta.status === 400 && detalhe === detalhesSemCredencial[provider]) {
+        return { provider, resources: [] };
+      }
+      if (!resposta.ok) {
+        throw new Error(detalhe || erro || `Falha ao carregar ${provider.toUpperCase()}`);
+      }
+      if (!data || !Array.isArray(data.resources)) {
+        throw new Error(`Resposta inválida de ${provider.toUpperCase()}: resources deve ser uma lista`);
+      }
+      return { provider, resources: data.resources };
+    }
+
     function alternarModoCadastro() {
       modoCadastro = true;
       document.getElementById("campo-full-name").style.display = "block";
@@ -820,17 +850,17 @@
     }
 
     function atualizarContadores() {
-      document.getElementById('cnt-gcp').textContent = counts.gcp || '—';
-      document.getElementById('cnt-azure').textContent = counts.azure || '—';
-      document.getElementById('cnt-aws').textContent = counts.aws || '—';
+      document.getElementById('cnt-gcp').textContent = counts.gcp;
+      document.getElementById('cnt-azure').textContent = counts.azure;
+      document.getElementById('cnt-aws').textContent = counts.aws;
       const total = counts.gcp + counts.azure + counts.aws;
-      document.getElementById('cnt-total').textContent = total || '—';
+      document.getElementById('cnt-total').textContent = total;
     }
 
     async function carregar(provider) {
       setStatus(`Carregando ${provider.toUpperCase()}...`, 'loading');
       try {
-        const data = await apiFetch(`/list/${provider}`);
+        const data = await carregarProvider(provider);
         counts[provider] = data.resources.length;
         atualizarContadores();
         renderizar([{ provider, resources: data.resources }]);
@@ -848,15 +878,11 @@
     async function carregarTodos() {
       setStatus('Carregando todos os providers...', 'loading');
       try {
-        const [gcp, azure, aws] = await Promise.all([
-          fetch(`${API}/list/gcp`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`${API}/list/azure`, { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch(`${API}/list/aws`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        const [gcpData, azureData, awsData] = await Promise.all([
+          carregarProvider('gcp'),
+          carregarProvider('azure'),
+          carregarProvider('aws'),
         ]);
-        if (gcp.status === 401 || azure.status === 401 || aws.status === 401) {
-          return sessaoExpirada();
-        }
-        const [gcpData, azureData, awsData] = await Promise.all([gcp.json(), azure.json(), aws.json()]);
         counts.gcp = gcpData.resources.length;
         counts.azure = azureData.resources.length;
         counts.aws = awsData.resources.length;
@@ -867,7 +893,12 @@
           { provider: 'aws', resources: awsData.resources },
         ]);
         const total = gcpData.resources.length + azureData.resources.length + awsData.resources.length;
-        setStatus(`${total} recursos carregados — GCP + Azure + AWS`, 'success');
+        setStatus(
+          total === 0
+            ? 'Nenhum recurso disponível. Cadastre credenciais em Configurações para começar.'
+            : `${total} recursos carregados — GCP + Azure + AWS`,
+          'success'
+        );
       } catch (e) {
         setStatus(`Erro: ${e.message}`, 'error');
       }
