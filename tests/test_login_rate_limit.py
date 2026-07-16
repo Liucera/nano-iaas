@@ -462,6 +462,7 @@ def test_hmac_keys_are_normalized_and_do_not_contain_username(monkeypatch):
     assert all("user@example.com" not in value for value in first.values())
 
 
+@pytest.mark.frontend_static
 def test_frontend_handles_429_and_retry_after():
     html = (Path(__file__).parents[1] / "docs" / "index.html").read_text()
 
