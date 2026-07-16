@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from cryptography.fernet import Fernet
 
 from google.api_core.exceptions import GoogleAPIError
@@ -72,6 +72,7 @@ LOGIN_RATE_LIMIT_RETENTION_SECONDS = _env_int("LOGIN_RATE_LIMIT_RETENTION_SECOND
 LOGIN_TRUST_PROXY_HEADERS = _env_bool("LOGIN_TRUST_PROXY_HEADERS", False)
 VERSAO_TERMOS_ATUAL = "2026-07-15"
 VERSAO_PRIVACIDADE_ATUAL = "2026-07-15"
+VERSAO_LEGADA_CADASTRO = "beta-2026-07"
 HASH_SENHA_FICTICIA = "$2b$12$eDn400ftB4k.B.6YDEPycu3a4hKrjVCY8mQE39S2LL7XWEID36Rt2"
 _chave_rate_limit = None
 _ultima_limpeza_rate_limit = 0.0
@@ -516,14 +517,30 @@ class Token(BaseModel):
     token_type: str
 
 class CadastroRequest(BaseModel):
-    full_name: str
+    full_name: str | None = Field(
+        default=None,
+        description="Campo oficial do contrato novo. Obrigatorio fora da compatibilidade legada temporaria.",
+    )
     email: EmailStr
     senha: str
     plano: str = "gratuito"
     aceite_termos: bool
-    aceite_privacidade: bool
-    terms_version: str
-    privacy_version: str
+    aceite_privacidade: bool | None = Field(
+        default=None,
+        description="Campo oficial do contrato novo. Obrigatorio fora da compatibilidade legada temporaria.",
+    )
+    terms_version: str | None = Field(
+        default=None,
+        description="Versao oficial dos Termos no contrato novo.",
+    )
+    privacy_version: str | None = Field(
+        default=None,
+        description="Versao oficial da Privacidade no contrato novo.",
+    )
+    versao_termos: str | None = Field(
+        default=None,
+        description="Temporario: versao enviada apenas pelo contrato legado de cadastro.",
+    )
 
     @field_validator("email", mode="before")
     @classmethod
@@ -854,11 +871,27 @@ def usuario_atual(token: str = Depends(oauth2_scheme)):
 # ── Rotas de autenticacao e cadastro ──────────────────────────
 @app.post("/cadastro", response_model=Token)
 def cadastro(dados: CadastroRequest):
-    full_name = dados.full_name.strip()
+    campos_novos = (
+        dados.full_name,
+        dados.aceite_privacidade,
+        dados.terms_version,
+        dados.privacy_version,
+    )
+    contrato_novo = all(valor is not None for valor in campos_novos)
+    contrato_legado = all(valor is None for valor in campos_novos)
+    if not contrato_novo and not contrato_legado:
+        raise HTTPException(
+            status_code=400,
+            detail="Contrato de cadastro incompleto: envie todos os campos novos ou somente o contrato legado",
+        )
+
+    full_name = dados.full_name.strip() if contrato_novo else None
     email = str(dados.email).strip().lower()
-    if len(full_name) < 3:
+    if contrato_novo and dados.versao_termos is not None:
+        raise HTTPException(status_code=400, detail="Nao combine campos dos contratos novo e legado")
+    if contrato_novo and len(full_name) < 3:
         raise HTTPException(status_code=400, detail="O nome completo deve ter pelo menos 3 caracteres")
-    if len(full_name) > 150:
+    if contrato_novo and len(full_name) > 150:
         raise HTTPException(status_code=400, detail="O nome completo deve ter no maximo 150 caracteres")
     if dados.plano not in PLANOS_VALIDOS:
         raise HTTPException(status_code=400, detail="Plano invalido")
@@ -866,12 +899,14 @@ def cadastro(dados: CadastroRequest):
         raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 8 caracteres")
     if not dados.aceite_termos:
         raise HTTPException(status_code=400, detail="Aceite os Termos de Uso para criar a conta")
-    if not dados.aceite_privacidade:
+    if contrato_novo and not dados.aceite_privacidade:
         raise HTTPException(status_code=400, detail="Aceite a Política de Privacidade para criar a conta")
-    if dados.terms_version != VERSAO_TERMOS_ATUAL:
+    if contrato_novo and dados.terms_version != VERSAO_TERMOS_ATUAL:
         raise HTTPException(status_code=400, detail="Versao dos Termos de Uso invalida")
-    if dados.privacy_version != VERSAO_PRIVACIDADE_ATUAL:
+    if contrato_novo and dados.privacy_version != VERSAO_PRIVACIDADE_ATUAL:
         raise HTTPException(status_code=400, detail="Versao da Política de Privacidade invalida")
+    if contrato_legado and dados.versao_termos != VERSAO_LEGADA_CADASTRO:
+        raise HTTPException(status_code=400, detail="Versao legada dos Termos de Uso invalida")
     if buscar_usuario_por_email(email):
         raise HTTPException(status_code=409, detail="Ja existe uma conta com esse e-mail")
 
@@ -881,9 +916,9 @@ def cadastro(dados: CadastroRequest):
         email,
         senha_hash,
         dados.aceite_termos,
-        dados.aceite_privacidade,
-        dados.terms_version,
-        dados.privacy_version,
+        dados.aceite_privacidade if contrato_novo else True,
+        dados.terms_version if contrato_novo else dados.versao_termos,
+        dados.privacy_version if contrato_novo else dados.versao_termos,
     )
     token = criar_token({"sub": novo["email"], "uid": novo["id"]})
     registrar_acesso(novo["email"], "CADASTRO", "-", "-", "plano inicial gratuito")

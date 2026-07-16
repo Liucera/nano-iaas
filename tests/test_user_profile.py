@@ -46,6 +46,18 @@ def cadastro_request(**changes):
     return backend.CadastroRequest(**data)
 
 
+def cadastro_legado_request(**changes):
+    data = {
+        "email": "  LEGADO@EXAMPLE.COM  ",
+        "senha": "senha-segura",
+        "plano": "premium",
+        "aceite_termos": True,
+        "versao_termos": "beta-2026-07",
+    }
+    data.update(changes)
+    return backend.CadastroRequest(**data)
+
+
 @pytest.fixture
 def cadastro_isolado(monkeypatch):
     captured = {}
@@ -79,6 +91,53 @@ def test_cadastro_valido_com_full_name_normalizado(cadastro_isolado):
     response = backend.cadastro(cadastro_request())
     assert response["token_type"] == "bearer"
     assert cadastro_isolado["create"][0] == "Maria da Silva"
+
+
+def test_cadastro_legado_valido_persiste_campos_compativeis(cadastro_isolado):
+    response = backend.cadastro(cadastro_legado_request())
+    assert response["token_type"] == "bearer"
+    assert cadastro_isolado["create"] == (
+        None,
+        "legado@example.com",
+        "hash:senha-segura",
+        True,
+        True,
+        "beta-2026-07",
+        "beta-2026-07",
+    )
+
+
+def test_cadastro_legado_com_aceite_falso_rejeitado(cadastro_isolado):
+    assert_http_error(cadastro_legado_request(aceite_termos=False), "Termos de Uso")
+
+
+def test_cadastro_legado_com_versao_diferente_rejeitado(cadastro_isolado):
+    assert_http_error(cadastro_legado_request(versao_termos="outra"), "Versao legada")
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"full_name": "Maria"},
+        {"aceite_privacidade": True},
+        {"terms_version": "2026-07-15"},
+        {"privacy_version": "2026-07-15"},
+        {
+            "aceite_privacidade": True,
+            "terms_version": "2026-07-15",
+            "privacy_version": "2026-07-15",
+        },
+    ],
+)
+def test_payload_hibrido_incompleto_rejeitado(cadastro_isolado, changes):
+    assert_http_error(cadastro_legado_request(**changes), "Contrato de cadastro incompleto")
+
+
+def test_contrato_novo_nao_aceita_campo_legado(cadastro_isolado):
+    assert_http_error(
+        cadastro_request(versao_termos="beta-2026-07"),
+        "Nao combine",
+    )
 
 
 def test_nome_vazio(cadastro_isolado):
@@ -206,6 +265,40 @@ def test_datas_versoes_e_campos_antigos_persistidos(monkeypatch):
     )
 
 
+def test_insert_legado_persiste_plano_admin_aceites_versoes_e_datas(monkeypatch):
+    connection = CaptureConnection()
+    monkeypatch.setattr(backend, "conectar_db", lambda: connection)
+    monkeypatch.setattr(backend, "buscar_usuario_por_email", lambda email: None)
+    monkeypatch.setattr(backend, "gerar_hash_senha", lambda senha: "hash")
+    monkeypatch.setattr(backend, "criar_token", lambda payload: "token")
+    monkeypatch.setattr(backend, "registrar_acesso", lambda *args: None)
+
+    backend.cadastro(cadastro_legado_request(plano="premium"))
+
+    query = connection.cursor_instance.query
+    values = re.search(
+        r"VALUES \(\s*%s, %s, %s, '([^']+)', (true|false),",
+        query,
+        flags=re.IGNORECASE,
+    )
+    assert values is not None
+    assert values.group(1) == "gratuito"
+    assert values.group(2).lower() == "false"
+    assert query.count("now()") == 3
+    assert connection.cursor_instance.params == (
+        None,
+        "legado@example.com",
+        "hash",
+        True,
+        "beta-2026-07",
+        True,
+        "beta-2026-07",
+        True,
+        "beta-2026-07",
+        True,
+    )
+
+
 def test_get_me_retorna_full_name(monkeypatch):
     monkeypatch.setattr(backend, "listar_providers_configurados", lambda user_id: ["aws"])
     result = backend.meus_dados({
@@ -243,10 +336,12 @@ def test_openapi_contem_novos_campos_e_schema_explicito_de_me():
     schema = backend.app.openapi()
     cadastro_schema = schema["components"]["schemas"]["CadastroRequest"]
     required = set(cadastro_schema["required"])
-    assert {
-        "full_name", "email", "senha", "aceite_termos", "aceite_privacidade",
-        "terms_version", "privacy_version",
-    } <= required
+    assert {"email", "senha", "aceite_termos"} <= required
+    for field in ("full_name", "aceite_privacidade", "terms_version", "privacy_version"):
+        assert "contrato novo" in cadastro_schema["properties"][field]["description"]
+    legado = cadastro_schema["properties"]["versao_termos"]
+    assert "Temporario" in legado["description"]
+    assert "legado" in legado["description"]
     me_response = schema["paths"]["/me"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert me_response["$ref"].endswith("/MeResponse")
     me_schema = schema["components"]["schemas"]["MeResponse"]["properties"]
