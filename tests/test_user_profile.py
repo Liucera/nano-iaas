@@ -367,6 +367,7 @@ class LegalLinksParser(HTMLParser):
         self.text_parts.append(data)
 
 
+@pytest.mark.frontend_static
 def test_frontend_contrato_legal_links_payload_e_fallback():
     html = (Path(__file__).parents[1] / "docs" / "index.html").read_text()
     parser = LegalLinksParser()
@@ -384,6 +385,7 @@ def test_frontend_contrato_legal_links_payload_e_fallback():
     assert "me.full_name || me.email" in html
 
 
+@pytest.mark.frontend_static
 def test_frontend_alterna_visibilidade_do_nome_por_modo():
     html = (Path(__file__).parents[1] / "docs" / "index.html").read_text()
     assert 'id="campo-full-name"' in html
