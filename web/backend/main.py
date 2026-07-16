@@ -270,6 +270,51 @@ def buscar_usuario_por_id(user_id: int):
     finally:
         conn.close()
 
+def buscar_senha_hash_usuario(user_id: int):
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT id, senha_hash FROM users WHERE id = %s",
+                (user_id,),
+            )
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+def atualizar_senha_usuario(user_id: int, novo_hash: str, usuario_email: str) -> bool:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET senha_hash = %s
+                WHERE id = %s
+                RETURNING id
+                """,
+                (novo_hash, user_id),
+            )
+            atualizado = cur.fetchone()
+        if not atualizado:
+            conn.rollback()
+            return False
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (usuario_email, "SENHA", "-", "-", "senha alterada"),
+            )
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def criar_usuario(
     full_name: str,
     email: str,
@@ -556,6 +601,15 @@ class MeResponse(BaseModel):
 
 class PlanoRequest(BaseModel):
     plano: str
+
+class ChangePasswordRequest(BaseModel):
+    senha_atual: str
+    nova_senha: str
+    confirmacao_nova_senha: str
+
+class ChangePasswordResponse(BaseModel):
+    ok: bool
+    message: str
 
 class PixRequest(BaseModel):
     plano: str
@@ -961,6 +1015,32 @@ def meus_dados(usuario=Depends(usuario_atual)):
         "is_admin": usuario["is_admin"],
         "providers_configurados": providers,
     }
+
+@app.post("/me/change-password", response_model=ChangePasswordResponse)
+def alterar_minha_senha(dados: ChangePasswordRequest, usuario=Depends(usuario_atual)):
+    if not dados.senha_atual:
+        raise HTTPException(status_code=400, detail="Informe a senha atual")
+    if not dados.nova_senha:
+        raise HTTPException(status_code=400, detail="Informe a nova senha")
+    if not dados.confirmacao_nova_senha:
+        raise HTTPException(status_code=400, detail="Confirme a nova senha")
+    if dados.nova_senha != dados.confirmacao_nova_senha:
+        raise HTTPException(status_code=400, detail="A confirmação da nova senha não confere")
+    if len(dados.nova_senha) < 8:
+        raise HTTPException(status_code=400, detail="A nova senha deve ter pelo menos 8 caracteres")
+
+    credencial = buscar_senha_hash_usuario(usuario["id"])
+    if not credencial:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if not verificar_senha(dados.senha_atual, credencial["senha_hash"]):
+        raise HTTPException(status_code=401, detail="Senha atual incorreta")
+    if dados.nova_senha == dados.senha_atual:
+        raise HTTPException(status_code=400, detail="A nova senha deve ser diferente da senha atual")
+
+    novo_hash = gerar_hash_senha(dados.nova_senha)
+    if not atualizar_senha_usuario(usuario["id"], novo_hash, usuario["email"]):
+        raise HTTPException(status_code=401, detail="Token inválido")
+    return {"ok": True, "message": "Senha alterada com sucesso."}
 
 @app.get("/pix")
 def dados_pix(usuario=Depends(usuario_atual)):

@@ -610,6 +610,7 @@
     let recursosAtuais = [];
     let modoCadastro = false;
     let envioAuthEmAndamento = false;
+    let envioAlteracaoSenhaEmAndamento = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -625,7 +626,32 @@
       el.className = 'status ' + (tipo || '');
     }
 
-    async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
+    async function apiFetch(path, options = {}) {
+      const {
+        json,
+        preserveSessionOn401 = false,
+        headers: optionHeaders = {},
+        body,
+        ...fetchOptions
+      } = options;
+      const headers = { ...optionHeaders };
+      if (token) headers.Authorization = "Bearer " + token;
+      if (json) headers["Content-Type"] = "application/json";
+      const res = await fetch(API + path, {
+        ...fetchOptions,
+        headers,
+        body: json ? JSON.stringify(json) : body,
+      });
+      const data = await res.json().catch(() => ({}));
+      const preservarSessao =
+        preserveSessionOn401 && data.detail === "Senha atual incorreta";
+      if (res.status === 401 && !preservarSessao) {
+        sessaoExpirada();
+        throw new Error("Sessão expirada");
+      }
+      if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição");
+      return data;
+    }
 
     const detalhesSemCredencial = {
       aws: 'Nenhuma credencial AWS cadastrada para este usuario',
@@ -781,7 +807,113 @@
 
     document.getElementById("auth-form").addEventListener("submit", enviarFormularioAuth);
 
-    async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; const nomeExibicao = me.full_name || me.email; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + nomeExibicao + " (" + me.email + ") | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+    async function exibirConfiguracoes() {
+      setStatus("Carregando configurações...", "loading");
+      try {
+        const me = await apiFetch("/me");
+        const providers = (me.providers_configurados || []).join(", ") || "nenhum";
+        const nomeExibicao = me.full_name || me.email;
+        document.getElementById("painel-recursos").innerHTML = `
+          <div class="settings-panel">
+            <div class="settings-block">
+              <h3>Conta</h3>
+              <p>${nomeExibicao} (${me.email}) | Plano: ${me.plano} | Providers: ${providers}</p>
+              <div class="settings-actions">
+                <button class="btn-login" type="button" onclick="atualizarPlanoPrompt()">Atualizar plano</button>
+                <button class="btn-login" type="button" onclick="exibirFormularioAlterarSenha()">Alterar senha</button>
+              </div>
+              <div id="alterar-senha-container"></div>
+            </div>
+            <div class="settings-block">
+              <h3>Credenciais</h3>
+              <div class="settings-actions">
+                <button class="btn-login" type="button" onclick="salvarCredencialAWSPrompt()">Salvar AWS</button>
+                <button class="btn-login" type="button" onclick="salvarCredencialAzurePrompt()">Salvar Azure</button>
+                <button class="btn-login" type="button" onclick="salvarCredencialGCPPrompt()">Salvar GCP</button>
+              </div>
+            </div>
+          </div>`;
+        setStatus("Configurações carregadas", "success");
+      } catch (e) {
+        setStatus("Erro: " + e.message, "error");
+      }
+    }
+
+    function exibirFormularioAlterarSenha() {
+      const container = document.getElementById("alterar-senha-container");
+      container.innerHTML = `
+        <form id="change-password-form" autocomplete="off">
+          <div class="campo">
+            <label for="change-password-current">Senha atual</label>
+            <input id="change-password-current" name="senha_atual" type="password" autocomplete="current-password" required>
+          </div>
+          <div class="campo">
+            <label for="change-password-new">Nova senha</label>
+            <input id="change-password-new" name="nova_senha" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div class="campo">
+            <label for="change-password-confirm">Confirmar nova senha</label>
+            <input id="change-password-confirm" name="confirmacao_nova_senha" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <button id="change-password-submit" class="btn-login" type="submit">Salvar nova senha</button>
+          <div id="change-password-message" class="status" role="alert" aria-live="polite"></div>
+        </form>`;
+      document.getElementById("change-password-form").addEventListener("submit", alterarSenha);
+      document.getElementById("change-password-current").focus();
+    }
+
+    async function alterarSenha(event) {
+      event.preventDefault();
+      if (envioAlteracaoSenhaEmAndamento) return;
+
+      const form = event.currentTarget;
+      const senhaAtual = form.elements.senha_atual.value;
+      const novaSenha = form.elements.nova_senha.value;
+      const confirmacao = form.elements.confirmacao_nova_senha.value;
+      const mensagem = document.getElementById("change-password-message");
+      const botao = document.getElementById("change-password-submit");
+      mensagem.className = "status error";
+
+      if (!senhaAtual || !novaSenha || !confirmacao) {
+        mensagem.textContent = "Preencha os três campos de senha.";
+        return;
+      }
+      if (novaSenha.length < 8) {
+        mensagem.textContent = "A nova senha deve ter pelo menos 8 caracteres.";
+        return;
+      }
+      if (novaSenha !== confirmacao) {
+        mensagem.textContent = "A confirmação da nova senha não confere.";
+        return;
+      }
+      if (novaSenha === senhaAtual) {
+        mensagem.textContent = "A nova senha deve ser diferente da senha atual.";
+        return;
+      }
+
+      envioAlteracaoSenhaEmAndamento = true;
+      botao.disabled = true;
+      try {
+        const resposta = await apiFetch("/me/change-password", {
+          method: "POST",
+          preserveSessionOn401: true,
+          json: {
+            senha_atual: senhaAtual,
+            nova_senha: novaSenha,
+            confirmacao_nova_senha: confirmacao,
+          },
+        });
+        form.reset();
+        mensagem.textContent = resposta.message || "Senha alterada com sucesso.";
+        mensagem.className = "status success";
+      } catch (e) {
+        mensagem.textContent = e.message || "Não foi possível alterar a senha.";
+        mensagem.className = "status error";
+      } finally {
+        envioAlteracaoSenhaEmAndamento = false;
+        botao.disabled = false;
+      }
+    }
 
     async function atualizarPlanoPrompt() { const plano = prompt("Plano: gratuito, popular ou premium"); if (!plano) return; if (plano !== "gratuito") { return solicitarPixPrompt(plano); } try { await apiFetch("/me/plano", { method: "PATCH", json: { plano } }); setStatus("Plano atualizado", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
