@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nano-IaaS Dashboard</title>
+  <link rel="icon" href="./logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -106,6 +107,7 @@
     }
 
     .btn-login:hover { opacity: 0.9; }
+    .btn-login:disabled { cursor: wait; opacity: 0.65; }
 
     .btn-secondary {
       width: 100%; background: transparent; color: #93c5fd; border: 1px solid #1d4ed8;
@@ -460,39 +462,44 @@
       <h2>Nano-IaaS</h2>
       <p>Faça login para acessar o dashboard</p>
 
-      <div class="campo" id="campo-full-name" style="display:none">
-        <label for="input-full-name">Nome completo</label>
-        <input type="text" id="input-full-name" maxlength="150" autocomplete="name" placeholder="Seu nome completo" />
-      </div>
+      <form id="auth-form" novalidate>
+        <div class="campo" id="campo-full-name" style="display:none">
+          <label for="input-full-name">Nome completo</label>
+          <input type="text" id="input-full-name" maxlength="150" autocomplete="name" placeholder="Seu nome completo" />
+        </div>
 
-      <div class="campo">
-        <label for="input-usuario">Usuário</label>
-        <input type="text" id="input-usuario" placeholder="admin" />
-      </div>
+        <div class="campo" id="campo-usuario">
+          <label for="input-usuario">Usuário</label>
+          <input type="text" id="input-usuario" autocomplete="username" placeholder="admin" />
+        </div>
 
-      <div class="campo">
-        <label for="input-senha">Senha</label>
-        <input type="password" id="input-senha" placeholder="••••••••"
-               onkeydown="if(event.key==='Enter') fazerLogin()" />
-      </div>
+        <div class="campo" id="campo-email" style="display:none">
+          <label for="input-email">E-mail</label>
+          <input type="email" id="input-email" autocomplete="email" placeholder="voce@example.com" />
+        </div>
 
-      <button class="btn-login" onclick="fazerLogin()">Entrar</button>
-      <label class="aceite-termos" for="input-aceite-termos">
-        <input type="checkbox" id="input-aceite-termos" />
-        <span>Li e aceito os <a href="https://nano-iaas.com.br/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e a <a href="https://nano-iaas.com.br/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</span>
-      </label>
-      <button class="btn-secondary" id="btn-cadastro" onclick="alternarModoCadastro()">Criar conta</button>
-      <button class="btn-secondary" id="btn-voltar-login" style="display:none" onclick="alternarModoLogin()">Voltar para login</button>
-      <div class="campo" style="margin-top:18px">
-        <label for="input-plano">Plano</label>
-        <select id="input-plano">
-          <option value="gratuito">Gratuito</option>
-          <option value="popular">Popular</option>
-          <option value="premium">Premium</option>
-        </select>
-      </div>
-      <a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#B0B0B0;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3F51B5'" onmouseout="this.style.color='#B0B0B0'">Saiba mais sobre o Nano-IaaS</a>
-      <div class="erro-login" id="erro-login">Usuário ou senha incorretos.</div>
+        <div class="campo">
+          <label for="input-senha">Senha</label>
+          <input type="password" id="input-senha" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+
+        <div id="aceites-cadastro" style="display:none">
+          <label class="aceite-termos" for="input-aceite-termos">
+            <input type="checkbox" id="input-aceite-termos" />
+            <span>Li e aceito os <a href="https://nano-iaas.com.br/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</a>.</span>
+          </label>
+          <label class="aceite-termos" for="input-aceite-privacidade">
+            <input type="checkbox" id="input-aceite-privacidade" />
+            <span>Li e aceito a <a href="https://nano-iaas.com.br/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</span>
+          </label>
+        </div>
+
+        <button class="btn-login" id="btn-submit-auth" type="submit">Entrar</button>
+        <button class="btn-secondary" id="btn-cadastro" type="button" onclick="alternarModoCadastro()">Criar conta</button>
+        <button class="btn-secondary" id="btn-voltar-login" type="button" style="display:none" onclick="alternarModoLogin()">Voltar para login</button>
+        <a href="landing.html" style="display:block;text-align:center;margin-top:14px;font-size:14px;font-weight:500;color:#B0B0B0;text-decoration:none;letter-spacing:0.3px;transition:color 0.15s;" onmouseover="this.style.color='#3F51B5'" onmouseout="this.style.color='#B0B0B0'">Saiba mais sobre o Nano-IaaS</a>
+        <div class="erro-login" id="erro-login" role="alert" aria-live="polite">Usuário ou senha incorretos.</div>
+      </form>
     </div>
   </div>
 
@@ -602,6 +609,7 @@
     let token = sessionStorage.getItem('nano_iaas_token');
     let recursosAtuais = [];
     let modoCadastro = false;
+    let envioAuthEmAndamento = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -620,34 +628,62 @@
     async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
 
     function alternarModoCadastro() {
-      if (modoCadastro) {
-        fazerCadastro();
-        return;
-      }
       modoCadastro = true;
-      const campoNome = document.getElementById("campo-full-name");
-      campoNome.style.display = "block";
-      document.getElementById("btn-cadastro").textContent = "Confirmar cadastro";
+      document.getElementById("campo-full-name").style.display = "block";
+      document.getElementById("campo-usuario").style.display = "none";
+      document.getElementById("campo-email").style.display = "block";
+      document.getElementById("aceites-cadastro").style.display = "block";
+      document.getElementById("input-senha").autocomplete = "new-password";
+      document.getElementById("btn-submit-auth").textContent = "Confirmar cadastro";
+      document.getElementById("btn-cadastro").style.display = "none";
       document.getElementById("btn-voltar-login").style.display = "block";
+      document.getElementById("erro-login").style.display = "none";
       document.getElementById("input-full-name").focus();
     }
 
     function alternarModoLogin() {
       modoCadastro = false;
-      const campoNome = document.getElementById("campo-full-name");
-      campoNome.style.display = "none";
+      document.getElementById("campo-full-name").style.display = "none";
+      document.getElementById("campo-usuario").style.display = "block";
+      document.getElementById("campo-email").style.display = "none";
+      document.getElementById("aceites-cadastro").style.display = "none";
       document.getElementById("input-full-name").value = "";
-      document.getElementById("btn-cadastro").textContent = "Criar conta";
+      document.getElementById("input-email").value = "";
+      document.getElementById("input-aceite-termos").checked = false;
+      document.getElementById("input-aceite-privacidade").checked = false;
+      document.getElementById("input-senha").autocomplete = "current-password";
+      document.getElementById("btn-submit-auth").textContent = "Entrar";
+      document.getElementById("btn-cadastro").style.display = "block";
       document.getElementById("btn-voltar-login").style.display = "none";
       document.getElementById("erro-login").style.display = "none";
+      document.getElementById("input-usuario").focus();
+    }
+
+    async function enviarFormularioAuth(event) {
+      event.preventDefault();
+      if (envioAuthEmAndamento) return;
+
+      envioAuthEmAndamento = true;
+      const botao = document.getElementById("btn-submit-auth");
+      botao.disabled = true;
+      try {
+        if (modoCadastro) {
+          await fazerCadastro();
+        } else {
+          await fazerLogin();
+        }
+      } finally {
+        envioAuthEmAndamento = false;
+        botao.disabled = false;
+      }
     }
 
     async function fazerCadastro() {
       const fullName = document.getElementById("input-full-name").value.trim();
-      const email = document.getElementById("input-usuario").value.trim().toLowerCase();
+      const email = document.getElementById("input-email").value.trim().toLowerCase();
       const senha = document.getElementById("input-senha").value;
-      const plano = document.getElementById("input-plano").value;
       const aceiteTermos = document.getElementById("input-aceite-termos").checked;
+      const aceitePrivacidade = document.getElementById("input-aceite-privacidade").checked;
       const erro = document.getElementById("erro-login");
       erro.style.display = "none";
 
@@ -672,7 +708,12 @@
         return;
       }
       if (!aceiteTermos) {
-        erro.textContent = "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.";
+        erro.textContent = "Para criar a conta, aceite os Termos de Uso.";
+        erro.style.display = "block";
+        return;
+      }
+      if (!aceitePrivacidade) {
+        erro.textContent = "Para criar a conta, aceite a Política de Privacidade.";
         erro.style.display = "block";
         return;
       }
@@ -684,9 +725,8 @@
             full_name: fullName,
             email,
             senha,
-            plano,
-            aceite_termos: true,
-            aceite_privacidade: true,
+            aceite_termos: aceiteTermos,
+            aceite_privacidade: aceitePrivacidade,
             terms_version: "2026-07-15",
             privacy_version: "2026-07-15"
           }
@@ -695,11 +735,7 @@
         sessionStorage.setItem("nano_iaas_token", token);
         document.getElementById("tela-login").style.display = "none";
         document.getElementById("tela-dashboard").style.display = "block";
-        if (plano !== "gratuito") {
-          await solicitarPixPrompt(plano);
-        } else {
-          exibirConfiguracoes();
-        }
+        exibirConfiguracoes();
       } catch (e) {
         const mensagem = e.message || "";
         if (mensagem.includes("Versao") || mensagem.includes("versão")) {
@@ -712,6 +748,8 @@
         erro.style.display = "block";
       }
     }
+
+    document.getElementById("auth-form").addEventListener("submit", enviarFormularioAuth);
 
     async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; const nomeExibicao = me.full_name || me.email; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + nomeExibicao + " (" + me.email + ") | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
