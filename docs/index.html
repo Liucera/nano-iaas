@@ -460,6 +460,11 @@
       <h2>Nano-IaaS</h2>
       <p>Faça login para acessar o dashboard</p>
 
+      <div class="campo" id="campo-full-name" style="display:none">
+        <label for="input-full-name">Nome completo</label>
+        <input type="text" id="input-full-name" maxlength="150" autocomplete="name" placeholder="Seu nome completo" />
+      </div>
+
       <div class="campo">
         <label for="input-usuario">Usuário</label>
         <input type="text" id="input-usuario" placeholder="admin" />
@@ -474,9 +479,10 @@
       <button class="btn-login" onclick="fazerLogin()">Entrar</button>
       <label class="aceite-termos" for="input-aceite-termos">
         <input type="checkbox" id="input-aceite-termos" />
-        <span>Li e aceito os <a href="TERMOS_DE_USO.md" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="PRIVACIDADE.md" target="_blank" rel="noopener">Política de Privacidade</a>.</span>
+        <span>Li e aceito os <a href="https://nano-iaas.com.br/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</a> e a <a href="https://nano-iaas.com.br/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</span>
       </label>
-      <button class="btn-secondary" onclick="fazerCadastro()">Criar conta</button>
+      <button class="btn-secondary" id="btn-cadastro" onclick="alternarModoCadastro()">Criar conta</button>
+      <button class="btn-secondary" id="btn-voltar-login" style="display:none" onclick="alternarModoLogin()">Voltar para login</button>
       <div class="campo" style="margin-top:18px">
         <label for="input-plano">Plano</label>
         <select id="input-plano">
@@ -595,6 +601,7 @@
     const counts = { gcp: 0, azure: 0, aws: 0 };
     let token = sessionStorage.getItem('nano_iaas_token');
     let recursosAtuais = [];
+    let modoCadastro = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -612,14 +619,58 @@
 
     async function apiFetch(path, options = {}) { const headers = options.headers || {}; if (token) headers["Authorization"] = "Bearer " + token; if (options.json) headers["Content-Type"] = "application/json"; const res = await fetch(API + path, { ...options, headers, body: options.json ? JSON.stringify(options.json) : options.body }); const data = await res.json().catch(() => ({})); if (res.status === 401) { sessaoExpirada(); throw new Error("Sessão expirada"); } if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição"); return data; }
 
+    function alternarModoCadastro() {
+      if (modoCadastro) {
+        fazerCadastro();
+        return;
+      }
+      modoCadastro = true;
+      const campoNome = document.getElementById("campo-full-name");
+      campoNome.style.display = "block";
+      document.getElementById("btn-cadastro").textContent = "Confirmar cadastro";
+      document.getElementById("btn-voltar-login").style.display = "block";
+      document.getElementById("input-full-name").focus();
+    }
+
+    function alternarModoLogin() {
+      modoCadastro = false;
+      const campoNome = document.getElementById("campo-full-name");
+      campoNome.style.display = "none";
+      document.getElementById("input-full-name").value = "";
+      document.getElementById("btn-cadastro").textContent = "Criar conta";
+      document.getElementById("btn-voltar-login").style.display = "none";
+      document.getElementById("erro-login").style.display = "none";
+    }
+
     async function fazerCadastro() {
-      const email = document.getElementById("input-usuario").value;
+      const fullName = document.getElementById("input-full-name").value.trim();
+      const email = document.getElementById("input-usuario").value.trim().toLowerCase();
       const senha = document.getElementById("input-senha").value;
       const plano = document.getElementById("input-plano").value;
       const aceiteTermos = document.getElementById("input-aceite-termos").checked;
       const erro = document.getElementById("erro-login");
       erro.style.display = "none";
 
+      if (!fullName) {
+        erro.textContent = "Informe seu nome completo.";
+        erro.style.display = "block";
+        return;
+      }
+      if (fullName.length < 3) {
+        erro.textContent = "O nome completo deve ter pelo menos 3 caracteres.";
+        erro.style.display = "block";
+        return;
+      }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        erro.textContent = "Informe um e-mail válido.";
+        erro.style.display = "block";
+        return;
+      }
+      if (senha.length < 8) {
+        erro.textContent = "A senha deve ter pelo menos 8 caracteres.";
+        erro.style.display = "block";
+        return;
+      }
       if (!aceiteTermos) {
         erro.textContent = "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade.";
         erro.style.display = "block";
@@ -630,11 +681,14 @@
         const data = await apiFetch("/cadastro", {
           method: "POST",
           json: {
+            full_name: fullName,
             email,
             senha,
             plano,
             aceite_termos: true,
-            versao_termos: "beta-2026-07"
+            aceite_privacidade: true,
+            terms_version: "2026-07-15",
+            privacy_version: "2026-07-15"
           }
         });
         token = data.access_token;
@@ -647,12 +701,19 @@
           exibirConfiguracoes();
         }
       } catch (e) {
-        erro.textContent = e.message;
+        const mensagem = e.message || "";
+        if (mensagem.includes("Versao") || mensagem.includes("versão")) {
+          erro.textContent = "As versões legais foram atualizadas. Recarregue a página e tente novamente.";
+        } else if (mensagem.includes("Ja existe") || mensagem.includes("já existe")) {
+          erro.textContent = "Este e-mail já está cadastrado.";
+        } else {
+          erro.textContent = mensagem || "Erro inesperado ao criar a conta.";
+        }
         erro.style.display = "block";
       }
     }
 
-    async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + me.email + " | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+    async function exibirConfiguracoes() { setStatus("Carregando configurações...", "loading"); try { const me = await apiFetch("/me"); const providers = (me.providers_configurados || []).join(", ") || "nenhum"; const nomeExibicao = me.full_name || me.email; document.getElementById("painel-recursos").innerHTML = "<div class=\"settings-panel\"><div class=\"settings-block\"><h3>Conta</h3><p>" + nomeExibicao + " (" + me.email + ") | Plano: " + me.plano + " | Providers: " + providers + "</p><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"atualizarPlanoPrompt()\">Atualizar plano</button></div></div><div class=\"settings-block\"><h3>Credenciais</h3><div class=\"settings-actions\"><button class=\"btn-login\" onclick=\"salvarCredencialAWSPrompt()\">Salvar AWS</button><button class=\"btn-login\" onclick=\"salvarCredencialAzurePrompt()\">Salvar Azure</button><button class=\"btn-login\" onclick=\"salvarCredencialGCPPrompt()\">Salvar GCP</button></div></div></div>"; setStatus("Configurações carregadas", "success"); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
     async function atualizarPlanoPrompt() { const plano = prompt("Plano: gratuito, popular ou premium"); if (!plano) return; if (plano !== "gratuito") { return solicitarPixPrompt(plano); } try { await apiFetch("/me/plano", { method: "PATCH", json: { plano } }); setStatus("Plano atualizado", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 

@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from cryptography.fernet import Fernet
 
 from google.api_core.exceptions import GoogleAPIError
@@ -70,7 +70,8 @@ LOGIN_RATE_LIMIT_WINDOW_SECONDS = _env_int("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 30
 LOGIN_RATE_LIMIT_BLOCK_SECONDS = _env_int("LOGIN_RATE_LIMIT_BLOCK_SECONDS", 900)
 LOGIN_RATE_LIMIT_RETENTION_SECONDS = _env_int("LOGIN_RATE_LIMIT_RETENTION_SECONDS", 86400)
 LOGIN_TRUST_PROXY_HEADERS = _env_bool("LOGIN_TRUST_PROXY_HEADERS", False)
-VERSAO_TERMOS_ATUAL = "beta-2026-07"
+VERSAO_TERMOS_ATUAL = "2026-07-15"
+VERSAO_PRIVACIDADE_ATUAL = "2026-07-15"
 HASH_SENHA_FICTICIA = "$2b$12$eDn400ftB4k.B.6YDEPycu3a4hKrjVCY8mQE39S2LL7XWEID36Rt2"
 _chave_rate_limit = None
 _ultima_limpeza_rate_limit = 0.0
@@ -178,6 +179,11 @@ def garantir_tabelas():
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS aceite_termos BOOLEAN NOT NULL DEFAULT false;")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS versao_termos TEXT;")
             cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS data_aceite_termos TIMESTAMPTZ;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_version TEXT;")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_accepted_at TIMESTAMPTZ;")
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS cloud_credentials (
                     id SERIAL PRIMARY KEY,
@@ -244,7 +250,7 @@ def buscar_usuario_por_email(email: str):
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, senha_hash, plano, is_admin FROM users WHERE email = %s",
+                "SELECT id, email, senha_hash, plano, is_admin FROM users WHERE lower(email) = lower(%s)",
                 (email,),
             )
             return cur.fetchone()
@@ -256,24 +262,47 @@ def buscar_usuario_por_id(user_id: int):
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, email, plano, is_admin FROM users WHERE id = %s",
+                "SELECT id, full_name, email, plano, is_admin FROM users WHERE id = %s",
                 (user_id,),
             )
             return cur.fetchone()
     finally:
         conn.close()
 
-def criar_usuario(email: str, senha_hash: str, plano: str = "gratuito", aceite_termos: bool = False, versao_termos: str | None = None):
+def criar_usuario(
+    full_name: str,
+    email: str,
+    senha_hash: str,
+    aceite_termos: bool,
+    aceite_privacidade: bool,
+    terms_version: str,
+    privacy_version: str,
+):
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                INSERT INTO users (email, senha_hash, plano, aceite_termos, versao_termos, data_aceite_termos)
-                VALUES (%s, %s, %s, %s, %s, CASE WHEN %s THEN now() ELSE NULL END)
-                RETURNING id, email, plano, is_admin
+                INSERT INTO users (
+                    full_name, email, senha_hash, plano, is_admin,
+                    aceite_termos, versao_termos, data_aceite_termos,
+                    terms_version, terms_accepted_at,
+                    privacy_version, privacy_accepted_at
+                )
+                VALUES (
+                    %s, %s, %s, 'gratuito', false,
+                    %s, %s, CASE WHEN %s THEN now() ELSE NULL END,
+                    %s, CASE WHEN %s THEN now() ELSE NULL END,
+                    %s, CASE WHEN %s THEN now() ELSE NULL END
+                )
+                RETURNING id, full_name, email, plano, is_admin
                 """,
-                (email, senha_hash, plano, aceite_termos, versao_termos, aceite_termos),
+                (
+                    full_name, email, senha_hash,
+                    aceite_termos, terms_version, aceite_termos,
+                    terms_version, aceite_termos,
+                    privacy_version, aceite_privacidade,
+                ),
             )
             novo = cur.fetchone()
         conn.commit()
@@ -487,11 +516,26 @@ class Token(BaseModel):
     token_type: str
 
 class CadastroRequest(BaseModel):
+    full_name: str
     email: EmailStr
     senha: str
     plano: str = "gratuito"
-    aceite_termos: bool = False
-    versao_termos: str = VERSAO_TERMOS_ATUAL
+    aceite_termos: bool
+    aceite_privacidade: bool
+    terms_version: str
+    privacy_version: str
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalizar_email(cls, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
+class MeResponse(BaseModel):
+    full_name: str | None
+    email: EmailStr
+    plano: str
+    is_admin: bool
+    providers_configurados: list[str]
 
 class PlanoRequest(BaseModel):
     plano: str
@@ -810,21 +854,39 @@ def usuario_atual(token: str = Depends(oauth2_scheme)):
 # ── Rotas de autenticacao e cadastro ──────────────────────────
 @app.post("/cadastro", response_model=Token)
 def cadastro(dados: CadastroRequest):
+    full_name = dados.full_name.strip()
+    email = str(dados.email).strip().lower()
+    if len(full_name) < 3:
+        raise HTTPException(status_code=400, detail="O nome completo deve ter pelo menos 3 caracteres")
+    if len(full_name) > 150:
+        raise HTTPException(status_code=400, detail="O nome completo deve ter no maximo 150 caracteres")
     if dados.plano not in PLANOS_VALIDOS:
         raise HTTPException(status_code=400, detail="Plano invalido")
     if len(dados.senha) < 8:
         raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 8 caracteres")
     if not dados.aceite_termos:
-        raise HTTPException(status_code=400, detail="Aceite os Termos de Uso e a Política de Privacidade para criar a conta")
-    if dados.versao_termos != VERSAO_TERMOS_ATUAL:
-        raise HTTPException(status_code=400, detail="Versão dos termos inválida")
-    if buscar_usuario_por_email(dados.email):
+        raise HTTPException(status_code=400, detail="Aceite os Termos de Uso para criar a conta")
+    if not dados.aceite_privacidade:
+        raise HTTPException(status_code=400, detail="Aceite a Política de Privacidade para criar a conta")
+    if dados.terms_version != VERSAO_TERMOS_ATUAL:
+        raise HTTPException(status_code=400, detail="Versao dos Termos de Uso invalida")
+    if dados.privacy_version != VERSAO_PRIVACIDADE_ATUAL:
+        raise HTTPException(status_code=400, detail="Versao da Política de Privacidade invalida")
+    if buscar_usuario_por_email(email):
         raise HTTPException(status_code=409, detail="Ja existe uma conta com esse e-mail")
 
     senha_hash = gerar_hash_senha(dados.senha)
-    novo = criar_usuario(dados.email, senha_hash, "gratuito", dados.aceite_termos, dados.versao_termos)
+    novo = criar_usuario(
+        full_name,
+        email,
+        senha_hash,
+        dados.aceite_termos,
+        dados.aceite_privacidade,
+        dados.terms_version,
+        dados.privacy_version,
+    )
     token = criar_token({"sub": novo["email"], "uid": novo["id"]})
-    registrar_acesso(novo["email"], "CADASTRO", "-", "-", f"plano solicitado {dados.plano}")
+    registrar_acesso(novo["email"], "CADASTRO", "-", "-", "plano inicial gratuito")
     return {"access_token": token, "token_type": "bearer"}
 
 @app.post("/login", response_model=Token)
@@ -854,10 +916,11 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     token = criar_token({"sub": usuario["email"], "uid": usuario["id"]})
     return {"access_token": token, "token_type": "bearer"}
 
-@app.get("/me")
+@app.get("/me", response_model=MeResponse)
 def meus_dados(usuario=Depends(usuario_atual)):
     providers = listar_providers_configurados(usuario["id"])
     return {
+        "full_name": usuario.get("full_name"),
         "email": usuario["email"],
         "plano": usuario["plano"],
         "is_admin": usuario["is_admin"],
