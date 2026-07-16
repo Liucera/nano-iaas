@@ -118,6 +118,7 @@ Pontos principais:
 - Logs de auditoria podem ser gerados para segurança e rastreabilidade.
 - A tela de cadastro exige aceite explícito dos Termos de Uso e da Política de Privacidade.
 - O contrato de `POST /cadastro` exige `full_name`, e-mail, senha, plano solicitado, aceites separados (`aceite_termos` e `aceite_privacidade`) e as versões legais `terms_version` e `privacy_version`, ambas em `2026-07-15`. Todo cadastro público inicia no plano `gratuito` e sem privilégios administrativos.
+- Temporariamente, o backend também aceita o contrato legado com `versao_termos=beta-2026-07`; o contrato novo acima permanece oficial, e a compatibilidade será removida após a estabilização do frontend novo.
 - `GET /me` retorna `full_name` (nulo para contas antigas), `email`, `plano`, `is_admin` e `providers_configurados`. Clientes devem usar o e-mail como fallback quando `full_name` for nulo.
 
 Esta documentação não promete conformidade total com a LGPD; ela representa uma adequação inicial que deve passar por revisão jurídica futura.
