@@ -3,6 +3,7 @@ import os
 import sys
 import types
 from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 import pydantic
@@ -52,18 +53,32 @@ class FakeCursor:
     def execute(self, query, params=()):
         normalized = " ".join(query.split())
         state = self.connection.state
+
+        def require(*fragments):
+            for fragment in fragments:
+                assert fragment in normalized, f"SQL sem trecho obrigatório: {fragment}"
         self.one = None
         self.all = []
 
         if normalized.startswith("SELECT id, credencial_cifrada, criado_em"):
+            require("FROM cloud_credentials", "WHERE user_id = %s AND provider = 'aws'", "ORDER BY id")
+            assert len(params) == 1
             user_id = params[0]
             record = state["credentials"].get(user_id)
             self.all = [copy.deepcopy(record)] if record else []
         elif normalized.startswith("SELECT id FROM cloud_credentials"):
+            require("WHERE user_id = %s AND provider = 'aws'", "FOR UPDATE")
+            assert len(params) == 1
             user_id = params[0]
             record = state["credentials"].get(user_id)
             self.one = {"id": record["id"]} if record else None
         elif normalized.startswith("INSERT INTO cloud_credentials"):
+            require(
+                "INSERT INTO cloud_credentials (user_id, provider, credencial_cifrada)",
+                "VALUES (%s, 'aws', %s)",
+                "RETURNING id, credencial_cifrada, criado_em",
+            )
+            assert len(params) == 2
             user_id, ciphertext = params
             record = {
                 "id": 1000 + user_id,
@@ -73,14 +88,28 @@ class FakeCursor:
             state["credentials"][user_id] = record
             self.one = copy.deepcopy(record)
         elif normalized.startswith("UPDATE cloud_credentials"):
+            require(
+                "SET credencial_cifrada = %s, criado_em = now()",
+                "WHERE user_id = %s AND provider = 'aws'",
+                "RETURNING id, credencial_cifrada, criado_em",
+            )
+            assert len(params) == 2
             ciphertext, user_id = params
             record = state["credentials"][user_id]
             record["credencial_cifrada"] = ciphertext
             record["criado_em"] = datetime(2026, 7, 17, 13, 0, tzinfo=timezone.utc)
             self.one = copy.deepcopy(record)
         elif normalized.startswith("DELETE FROM cloud_credentials"):
+            require("WHERE user_id = %s AND provider = 'aws'")
+            assert len(params) == 1
             state["credentials"].pop(params[0], None)
         elif normalized.startswith("INSERT INTO audit_log"):
+            require(
+                "INSERT INTO audit_log (usuario, acao, provider)",
+                "VALUES",
+                "'aws'",
+            )
+            assert "credencial_cifrada" not in normalized
             if self.connection.fail_audit:
                 raise RuntimeError("simulated audit failure")
             state["audits"].append({"query": normalized, "params": tuple(params)})
@@ -291,6 +320,79 @@ def test_validation_errors_do_not_echo_credentials(access_key, secret_key, detai
     assert access_key not in error.value.detail
     assert secret_key not in error.value.detail
 
+
+def test_schema_and_sql_contract_match_real_cloud_credentials_table():
+    source = Path(backend.__file__).read_text()
+    schema = source[
+        source.index("CREATE TABLE IF NOT EXISTS cloud_credentials"):
+        source.index("CREATE TABLE IF NOT EXISTS pix_payment_requests")
+    ]
+    assert "user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE" in schema
+    assert "provider TEXT NOT NULL" in schema
+    assert "credencial_cifrada TEXT NOT NULL" in schema
+    assert "criado_em TIMESTAMPTZ NOT NULL DEFAULT now()" in schema
+    assert "UNIQUE(user_id, provider)" in schema
+
+
+def test_audit_failure_rolls_back_creation(monkeypatch):
+    state = {"credentials": {}, "audits": []}
+    failed_connection = FakeConnection(state, fail_audit=True)
+    monkeypatch.setattr(backend, "conectar_db", lambda: failed_connection)
+
+    with pytest.raises(RuntimeError, match="simulated audit failure"):
+        backend.cadastrar_credencial_aws(aws_request(), USER_ONE)
+
+    assert failed_connection.rolled_back is True
+    assert state == {"credentials": {}, "audits": []}
+
+
+def test_legacy_aws_auth_error_does_not_log_credentials(monkeypatch, capsys):
+    def fail_session(**_kwargs):
+        raise RuntimeError(f"{ACCESS_KEY_ONE} {SECRET_KEY_ONE}")
+
+    monkeypatch.setattr("providers.aws.s3_reader.boto3.Session", fail_session)
+    reader = backend.S3Reader()
+
+    assert reader.authenticate({
+        "access_key_id": ACCESS_KEY_ONE,
+        "secret_access_key": SECRET_KEY_ONE,
+    }) is False
+
+    output = capsys.readouterr().out
+    assert "Erro ao autenticar na AWS" in output
+    assert ACCESS_KEY_ONE not in output
+    assert SECRET_KEY_ONE not in output
+
+
+@pytest.mark.parametrize("operation", ["list", "read"])
+def test_legacy_aws_client_errors_do_not_log_credentials(operation, capsys):
+    sensitive_error = backend.ClientError(
+        {
+            "Error": {
+                "Code": "AccessDenied",
+                "Message": f"{ACCESS_KEY_ONE} {SECRET_KEY_ONE}",
+            }
+        },
+        "SensitiveOperation",
+    )
+
+    class FailingClient:
+        def list_buckets(self):
+            raise sensitive_error
+
+        def get_paginator(self, _name):
+            raise sensitive_error
+
+    reader = backend.S3Reader()
+    reader.client = FailingClient()
+    if operation == "list":
+        assert list(reader.list_resources()) == []
+    else:
+        assert list(reader.read("s3://fictitious-bucket")) == []
+
+    output = capsys.readouterr().out
+    assert ACCESS_KEY_ONE not in output
+    assert SECRET_KEY_ONE not in output
 
 def test_all_aws_credential_routes_require_bearer_authentication():
     schema = backend.app.openapi()
