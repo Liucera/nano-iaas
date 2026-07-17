@@ -38,8 +38,8 @@ class S3Reader(CloudProvider):
                     self.session = boto3.Session()
             self.client = self.session.client('s3')
             return True
-        except Exception as e:
-            print(f"❌ Erro ao autenticar na AWS: {e}")
+        except Exception:
+            print("❌ Erro ao autenticar na AWS")
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
@@ -52,8 +52,8 @@ class S3Reader(CloudProvider):
                     'created': bucket['CreationDate'].isoformat(),
                     'type': 'bucket'
                 }
-        except ClientError as e:
-            print(f"❌ Erro ao listar buckets: {e}")
+        except ClientError:
+            print("❌ Erro ao listar buckets")
 
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
         """
@@ -97,8 +97,8 @@ class S3Reader(CloudProvider):
                         yield record
                         count += 1
 
-        except ClientError as e:
-            print(f"❌ Erro ao ler S3: {e}")
+        except ClientError:
+            print("❌ Erro ao ler S3")
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
         path = resource_path.replace('s3://', '')

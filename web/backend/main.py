@@ -490,6 +490,150 @@ def listar_providers_configurados(user_id: int):
     finally:
         conn.close()
 
+
+def mascarar_access_key_id(valor: str) -> str:
+    valor = valor.strip()
+    if len(valor) <= 8:
+        return "*" * max(4, len(valor))
+    return f"{valor[:4]}{'*' * (len(valor) - 8)}{valor[-4:]}"
+
+def mascarar_secret_access_key(valor: str) -> str:
+    valor = valor.strip()
+    if len(valor) <= 4:
+        return "*" * max(4, len(valor))
+    return f"{'*' * 8}{valor[-4:]}"
+
+def _metadata_credencial_aws(linha: dict) -> dict:
+    credencial = json.loads(descriptografar(linha["credencial_cifrada"]))
+    return {
+        "id": linha["id"],
+        "provider": "aws",
+        "access_key_id_masked": mascarar_access_key_id(credencial["access_key_id"]),
+        "secret_access_key_masked": mascarar_secret_access_key(credencial["secret_access_key"]),
+        "criado_em": linha["criado_em"],
+    }
+
+def listar_credenciais_aws_usuario(user_id: int) -> list[dict]:
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, credencial_cifrada, criado_em
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'aws'
+                ORDER BY id
+                """,
+                (user_id,),
+            )
+            linhas = cur.fetchall()
+        return [_metadata_credencial_aws(linha) for linha in linhas]
+    finally:
+        conn.close()
+
+def salvar_credencial_aws_usuario(
+    user_id: int,
+    usuario_email: str,
+    credencial_json: dict,
+    substituir: bool,
+) -> tuple[str, dict | None]:
+    cifrado = criptografar(json.dumps(credencial_json))
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'aws'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            existente = cur.fetchone()
+            if existente and not substituir:
+                conn.rollback()
+                return "exists", None
+            if not existente and substituir:
+                conn.rollback()
+                return "missing", None
+
+            if substituir:
+                cur.execute(
+                    """
+                    UPDATE cloud_credentials
+                    SET credencial_cifrada = %s, criado_em = now()
+                    WHERE user_id = %s AND provider = 'aws'
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (cifrado, user_id),
+                )
+                acao = "CREDENCIAL_SUBSTITUIDA"
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO cloud_credentials (user_id, provider, credencial_cifrada)
+                    VALUES (%s, 'aws', %s)
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (user_id, cifrado),
+                )
+                acao = "CREDENCIAL_CADASTRADA"
+
+            linha = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, %s, 'aws')
+                """,
+                (usuario_email, acao),
+            )
+        conn.commit()
+        return "ok", _metadata_credencial_aws(linha)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+def excluir_credencial_aws_usuario(user_id: int, usuario_email: str) -> bool:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'aws'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return False
+            cur.execute(
+                """
+                DELETE FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'aws'
+                """,
+                (user_id,),
+            )
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'aws')
+                """,
+                (usuario_email,),
+            )
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 # ── Auditoria ─────────────────────────────────────────────────
 def registrar_acesso(usuario: str, acao: str, provider: str, recurso: str, detalhes: str = ""):
     conn = conectar_db()
@@ -618,6 +762,13 @@ class PixRequest(BaseModel):
 class CredencialAWS(BaseModel):
     access_key_id: str
     secret_access_key: str
+
+class CredencialAWSResponse(BaseModel):
+    id: int
+    provider: str
+    access_key_id_masked: str
+    secret_access_key_masked: str
+    criado_em: datetime
 
 class CredencialGCP(BaseModel):
     service_account_json: str
@@ -1090,11 +1241,54 @@ def atualizar_meu_plano(dados: PlanoRequest, usuario=Depends(usuario_atual)):
     }
 
 # ── Rotas de gerenciamento de credenciais de nuvem ────────────
-@app.post("/credenciais/aws")
+def validar_credencial_aws(dados: CredencialAWS) -> dict:
+    access_key_id = dados.access_key_id.strip()
+    secret_access_key = dados.secret_access_key.strip()
+    if not (16 <= len(access_key_id) <= 128) or not access_key_id.isalnum():
+        raise HTTPException(status_code=400, detail="Access Key ID AWS inválida")
+    if not (32 <= len(secret_access_key) <= 128):
+        raise HTTPException(status_code=400, detail="Secret Access Key AWS inválida")
+    return {
+        "access_key_id": access_key_id,
+        "secret_access_key": secret_access_key,
+    }
+
+@app.get("/credenciais/aws", response_model=list[CredencialAWSResponse])
+def listar_credenciais_aws(usuario=Depends(usuario_atual)):
+    return listar_credenciais_aws_usuario(usuario["id"])
+
+@app.post("/credenciais/aws", response_model=CredencialAWSResponse)
 def cadastrar_credencial_aws(dados: CredencialAWS, usuario=Depends(usuario_atual)):
-    salvar_credencial(usuario["id"], "aws", dados.dict())
-    registrar_acesso(usuario["email"], "CREDENCIAL", "aws", "-", "credencial cadastrada")
-    return {"status": "ok", "provider": "aws"}
+    status_salvamento, credencial = salvar_credencial_aws_usuario(
+        usuario["id"],
+        usuario["email"],
+        validar_credencial_aws(dados),
+        substituir=False,
+    )
+    if status_salvamento == "exists":
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma credencial AWS cadastrada; use a opção substituir",
+        )
+    return credencial
+
+@app.put("/credenciais/aws", response_model=CredencialAWSResponse)
+def substituir_credencial_aws(dados: CredencialAWS, usuario=Depends(usuario_atual)):
+    status_salvamento, credencial = salvar_credencial_aws_usuario(
+        usuario["id"],
+        usuario["email"],
+        validar_credencial_aws(dados),
+        substituir=True,
+    )
+    if status_salvamento == "missing":
+        raise HTTPException(status_code=404, detail="Credencial AWS não encontrada")
+    return credencial
+
+@app.delete("/credenciais/aws")
+def excluir_credencial_aws(usuario=Depends(usuario_atual)):
+    if not excluir_credencial_aws_usuario(usuario["id"], usuario["email"]):
+        raise HTTPException(status_code=404, detail="Credencial AWS não encontrada")
+    return {"ok": True, "message": "Credencial AWS excluída com sucesso."}
 
 @app.post("/credenciais/gcp")
 def cadastrar_credencial_gcp(dados: CredencialGCP, usuario=Depends(usuario_atual)):
