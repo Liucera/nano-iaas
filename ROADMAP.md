@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
 **Última atualização:** 18/07/2026
-**Percentual total formal do projeto:** **33,33%**
+**Percentual total formal do projeto:** **35%**
 
 ## Governança
 
@@ -22,7 +22,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
-| 4 | Telas essenciais | `[~]` | 33,33% da macroetapa (3,33% do projeto) | Cadastro e Credenciais AWS concluídos; Credenciais GCP em andamento. |
+| 4 | Telas essenciais | `[~]` | 50% da macroetapa (5% do projeto) | Cadastro, Credenciais AWS e Credenciais GCP concluídos; Credenciais Azure em andamento. |
 | 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -51,23 +51,23 @@ O domínio principal foi concluído formalmente. A situação institucional atua
 
 ## Macroetapa 4 — Telas essenciais `[~]`
 
-A macroetapa 4 está em andamento. O Cadastro e o gerenciamento de Credenciais AWS foram concluídos formalmente. O bloco atual é Credenciais GCP e contempla somente cadastro, listagem segura, substituição e exclusão da credencial. A validação real contra o Google Cloud permanece reservada para a Macroetapa 6.
+A macroetapa 4 está em andamento. Cadastro, Credenciais AWS e Credenciais GCP foram concluídos formalmente. O bloco atual é Credenciais Azure e contempla somente cadastro, listagem segura, substituição e exclusão da credencial. A validação real contra a Microsoft Azure permanece reservada para a Macroetapa 6.
 
 Referência operacional vigente:
 
-- commit da `main`: `421cd8ac333be226055fba8c3b105026dd42c111`;
-- backend em produção: ECS task definition `nano-iaas-backend-dev:8`.
+- commit da `main`: `ad327c76f8dc099f3d2df4be276ccd0a41025605`;
+- backend em produção: ECS task definition `nano-iaas-backend-dev:9`.
 
 Subitens previstos, na ordem de execução controlada:
 
 - Cadastro `[x]`;
 - Credenciais AWS `[x]`;
-- Credenciais GCP `[~]`;
-- Credenciais Azure `[ ]`;
+- Credenciais GCP `[x]`;
+- Credenciais Azure `[~]`;
 - Atualização do próprio plano `[ ]`;
 - Revisão geral das mensagens de erro e sucesso `[ ]`.
 
-Dois dos seis blocos internos estão formalmente concluídos. Isso representa 33,33% da macroetapa 4 e 3,33% do projeto.
+Três dos seis blocos internos estão formalmente concluídos. Isso representa 50% da macroetapa 4 e 5% do projeto.
 
 ## Repositórios oficiais
 
@@ -96,16 +96,16 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 3 macroetapas concluídas × 10% = 30%;
-- 2 dos 6 blocos da macroetapa 4 concluídos = 3,33%;
+- 3 dos 6 blocos da macroetapa 4 concluídos = 5%;
 - macroetapas 5 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 33,33%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 35%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Concluir a implementação e a validação local do bloco Credenciais GCP.
+1. Concluir a implementação e a validação local do bloco Credenciais Azure.
 2. Submeter uma única PR para revisão, sem auto-merge.
-3. Não iniciar Credenciais Azure antes da conclusão formal do bloco GCP.
-4. Não executar validação real contra o Google Cloud antes da Macroetapa 6.
+3. Não iniciar Atualização do próprio plano antes da conclusão formal do bloco Azure.
+4. Não executar validação real contra a Microsoft Azure antes da Macroetapa 6.
