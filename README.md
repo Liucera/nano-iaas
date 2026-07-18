@@ -25,12 +25,13 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 
 - Macroetapas 1, 2 e 3: concluídas;
 - Macroetapa 4 — Telas essenciais: em andamento;
-- Cadastro: concluído;
-- Credenciais AWS: concluído e publicado no backend ECS `nano-iaas-backend-dev:8`;
-- Credenciais GCP: em andamento neste bloco, limitado ao cadastro e gerenciamento seguro da credencial;
+- Cadastro `[x]`;
+- Credenciais AWS `[x]`;
+- Credenciais GCP `[x]`;
+- Credenciais Azure `[~]`, limitada neste bloco ao cadastro e gerenciamento seguro da credencial;
 - validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
 
-A fonte vigente deste bloco é a `main` no commit `421cd8ac333be226055fba8c3b105026dd42c111`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:8`.
+A fonte vigente deste bloco é a `main` no commit `ad327c76f8dc099f3d2df4be276ccd0a41025605`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:9`.
 
 ### Repositórios oficiais e responsabilidades
 

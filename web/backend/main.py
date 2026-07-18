@@ -8,6 +8,7 @@ import threading
 from hashlib import sha256
 from time import monotonic
 from datetime import datetime, timedelta
+from uuid import UUID
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -798,6 +799,149 @@ def excluir_credencial_gcp_usuario(user_id: int, usuario_email: str) -> bool:
     finally:
         conn.close()
 
+
+def mascarar_identificador_azure(valor: str) -> str:
+    valor = valor.strip()
+    if len(valor) <= 8:
+        return "*" * max(4, len(valor))
+    return f"{valor[:4]}{'*' * (len(valor) - 8)}{valor[-4:]}"
+
+
+def _metadata_credencial_azure(linha: dict) -> dict:
+    credencial = json.loads(descriptografar(linha["credencial_cifrada"]))
+    return {
+        "id": linha["id"],
+        "provider": "azure",
+        "tenant_id_masked": mascarar_identificador_azure(credencial["tenant_id"]),
+        "client_id_masked": mascarar_identificador_azure(credencial["client_id"]),
+        "subscription_id_masked": mascarar_identificador_azure(credencial["subscription_id"]),
+        "criado_em": linha["criado_em"],
+    }
+
+
+def listar_credenciais_azure_usuario(user_id: int) -> list[dict]:
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, credencial_cifrada, criado_em
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'azure'
+                ORDER BY id
+                """,
+                (user_id,),
+            )
+            linhas = cur.fetchall()
+        return [_metadata_credencial_azure(linha) for linha in linhas]
+    finally:
+        conn.close()
+
+
+def salvar_credencial_azure_usuario(
+    user_id: int,
+    usuario_email: str,
+    credencial_json: dict,
+    substituir: bool,
+) -> tuple[str, dict | None]:
+    cifrado = criptografar(json.dumps(credencial_json))
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'azure'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            existente = cur.fetchone()
+            if existente and not substituir:
+                conn.rollback()
+                return "exists", None
+            if not existente and substituir:
+                conn.rollback()
+                return "missing", None
+
+            if substituir:
+                cur.execute(
+                    """
+                    UPDATE cloud_credentials
+                    SET credencial_cifrada = %s, criado_em = now()
+                    WHERE user_id = %s AND provider = 'azure'
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (cifrado, user_id),
+                )
+                acao = "CREDENCIAL_SUBSTITUIDA"
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO cloud_credentials (user_id, provider, credencial_cifrada)
+                    VALUES (%s, 'azure', %s)
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (user_id, cifrado),
+                )
+                acao = "CREDENCIAL_CADASTRADA"
+
+            linha = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, %s, 'azure')
+                """,
+                (usuario_email, acao),
+            )
+        conn.commit()
+        return "ok", _metadata_credencial_azure(linha)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def excluir_credencial_azure_usuario(user_id: int, usuario_email: str) -> bool:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'azure'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return False
+            cur.execute(
+                """
+                DELETE FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'azure'
+                """,
+                (user_id,),
+            )
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'azure')
+                """,
+                (usuario_email,),
+            )
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 # ── Auditoria ─────────────────────────────────────────────────
 def registrar_acesso(usuario: str, acao: str, provider: str, recurso: str, detalhes: str = ""):
     conn = conectar_db()
@@ -855,6 +999,11 @@ async def sanitizar_erro_validacao(request: Request, erro: RequestValidationErro
         return JSONResponse(
             status_code=422,
             content={"detail": "Requisição de credencial GCP inválida"},
+        )
+    if request.url.path == "/credenciais/azure":
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Requisição de credencial Azure inválida"},
         )
     return await request_validation_exception_handler(request, erro)
 
@@ -955,7 +1104,18 @@ class CredencialGCPResponse(BaseModel):
     criado_em: datetime
 
 class CredencialAzure(BaseModel):
-    connection_string: str
+    tenant_id: object | None = None
+    client_id: object | None = None
+    client_secret: object | None = None
+    subscription_id: object | None = None
+
+class CredencialAzureResponse(BaseModel):
+    id: int
+    provider: str
+    tenant_id_masked: str
+    client_id_masked: str
+    subscription_id_masked: str
+    criado_em: datetime
 
 # ── Funcoes de autenticacao ─────────────────────────────────
 def verificar_senha(senha_plana, senha_hash):
@@ -1455,6 +1615,32 @@ def validar_credencial_gcp(dados: CredencialGCP) -> dict:
     service_account_normalizada = json.dumps(info, ensure_ascii=False, separators=(",", ":"))
     return {"service_account_json": service_account_normalizada}
 
+
+def _normalizar_uuid_azure(valor: object, campo: str) -> str:
+    if not isinstance(valor, str) or not valor.strip() or len(valor) > 64:
+        raise HTTPException(status_code=400, detail=f"{campo} Azure inválido")
+    try:
+        identificador = UUID(valor.strip())
+    except (ValueError, AttributeError, TypeError):
+        raise HTTPException(status_code=400, detail=f"{campo} Azure inválido") from None
+    return str(identificador)
+
+
+def validar_credencial_azure(dados: CredencialAzure) -> dict:
+    client_secret = dados.client_secret
+    if not isinstance(client_secret, str) or not client_secret.strip() or len(client_secret) > 4096:
+        raise HTTPException(status_code=400, detail="Client Secret Azure inválido")
+    return {
+        "tenant_id": _normalizar_uuid_azure(dados.tenant_id, "Tenant ID"),
+        "client_id": _normalizar_uuid_azure(dados.client_id, "Client ID"),
+        "client_secret": client_secret.strip(),
+        "subscription_id": _normalizar_uuid_azure(dados.subscription_id, "Subscription ID"),
+    }
+
+
+def erro_interno_credencial_azure() -> HTTPException:
+    return HTTPException(status_code=500, detail="Não foi possível processar a credencial Azure")
+
 @app.get("/credenciais/aws", response_model=list[CredencialAWSResponse])
 def listar_credenciais_aws(usuario=Depends(usuario_atual)):
     return listar_credenciais_aws_usuario(usuario["id"])
@@ -1532,11 +1718,65 @@ def excluir_credencial_gcp(usuario=Depends(usuario_atual)):
         raise HTTPException(status_code=404, detail="Credencial GCP não encontrada")
     return {"ok": True, "message": "Credencial GCP excluída com sucesso."}
 
-@app.post("/credenciais/azure")
+@app.get("/credenciais/azure", response_model=list[CredencialAzureResponse])
+def listar_credenciais_azure(usuario=Depends(usuario_atual)):
+    try:
+        return listar_credenciais_azure_usuario(usuario["id"])
+    except HTTPException:
+        raise
+    except Exception:
+        raise erro_interno_credencial_azure() from None
+
+
+@app.post("/credenciais/azure", response_model=CredencialAzureResponse)
 def cadastrar_credencial_azure(dados: CredencialAzure, usuario=Depends(usuario_atual)):
-    salvar_credencial(usuario["id"], "azure", dados.dict())
-    registrar_acesso(usuario["email"], "CREDENCIAL", "azure", "-", "credencial cadastrada")
-    return {"status": "ok", "provider": "azure"}
+    try:
+        status_salvamento, credencial = salvar_credencial_azure_usuario(
+            usuario["id"],
+            usuario["email"],
+            validar_credencial_azure(dados),
+            substituir=False,
+        )
+        if status_salvamento == "exists":
+            raise HTTPException(
+                status_code=409,
+                detail="Já existe uma credencial Azure cadastrada; use a opção substituir",
+            )
+        return credencial
+    except HTTPException:
+        raise
+    except Exception:
+        raise erro_interno_credencial_azure() from None
+
+
+@app.put("/credenciais/azure", response_model=CredencialAzureResponse)
+def substituir_credencial_azure(dados: CredencialAzure, usuario=Depends(usuario_atual)):
+    try:
+        status_salvamento, credencial = salvar_credencial_azure_usuario(
+            usuario["id"],
+            usuario["email"],
+            validar_credencial_azure(dados),
+            substituir=True,
+        )
+        if status_salvamento == "missing":
+            raise HTTPException(status_code=404, detail="Credencial Azure não encontrada")
+        return credencial
+    except HTTPException:
+        raise
+    except Exception:
+        raise erro_interno_credencial_azure() from None
+
+
+@app.delete("/credenciais/azure")
+def excluir_credencial_azure(usuario=Depends(usuario_atual)):
+    try:
+        if not excluir_credencial_azure_usuario(usuario["id"], usuario["email"]):
+            raise HTTPException(status_code=404, detail="Credencial Azure não encontrada")
+        return {"ok": True, "message": "Credencial Azure excluída com sucesso."}
+    except HTTPException:
+        raise
+    except Exception:
+        raise erro_interno_credencial_azure() from None
 
 # ── Providers: autenticacao por usuario, com fallback para o admin ───
 def obter_provider_autenticado(provider: str, usuario: dict):
