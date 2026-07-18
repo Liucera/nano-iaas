@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from cryptography.fernet import Fernet
 
 from google.api_core.exceptions import GoogleAPIError
@@ -360,41 +360,128 @@ def criar_usuario(
     finally:
         conn.close()
 
-def atualizar_plano_usuario(user_id: int, plano: str):
+def atualizar_plano_proprio(user_id: int, plano: str):
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                UPDATE users
-                SET plano = %s
+                SELECT id, email, plano, is_admin
+                FROM users
                 WHERE id = %s
-                RETURNING id, email, plano, is_admin
+                FOR UPDATE
                 """,
-                (plano, user_id),
+                (user_id,),
             )
             usuario = cur.fetchone()
+            if not usuario:
+                conn.rollback()
+                return None
+
+            plano_anterior = usuario["plano"]
+            if plano != "gratuito" and plano_anterior != plano:
+                conn.rollback()
+                return {
+                    "plano_anterior": plano_anterior,
+                    "plano": plano_anterior,
+                    "alterado": False,
+                    "bloqueado": True,
+                }
+            alterado = plano_anterior != plano
+            if alterado:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET plano = %s
+                    WHERE id = %s
+                    RETURNING id, email, plano, is_admin
+                    """,
+                    (plano, user_id),
+                )
+                usuario = cur.fetchone()
+
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
+                VALUES (%s, %s, '-', 'plano', %s)
+                """,
+                (
+                    usuario["email"],
+                    "PLANO_ATUALIZADO" if alterado else "PLANO_MANTIDO",
+                    f"plano_anterior={plano_anterior};plano_novo={plano}",
+                ),
+            )
         conn.commit()
-        return usuario
+        return {
+            "plano_anterior": plano_anterior,
+            "plano": usuario["plano"],
+            "alterado": alterado,
+            "bloqueado": False,
+        }
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
-def criar_solicitacao_pix(usuario: dict, plano: str, comprovante: str = ""):
+def criar_solicitacao_pix(user_id: int, plano: str, comprovante: str = ""):
     valor_centavos = PLANOS_VALORES[plano] * 100
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
+                SELECT id, email, plano
+                FROM users
+                WHERE id = %s
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            usuario = cur.fetchone()
+            if not usuario:
+                conn.rollback()
+                return "missing_user", None
+            if usuario["plano"] == plano:
+                conn.rollback()
+                return "already_active", None
+
+            cur.execute(
+                """
+                SELECT id, plano
+                FROM pix_payment_requests
+                WHERE user_id = %s AND status = 'pendente'
+                ORDER BY id
+                LIMIT 1
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            if cur.fetchone():
+                conn.rollback()
+                return "pending", None
+
+            cur.execute(
+                """
                 INSERT INTO pix_payment_requests (user_id, email, plano, valor_centavos, comprovante)
                 VALUES (%s, %s, %s, %s, %s)
                 RETURNING id, email, plano, valor_centavos, comprovante, status, criado_em
                 """,
-                (usuario["id"], usuario["email"], plano, valor_centavos, comprovante),
+                (user_id, usuario["email"], plano, valor_centavos, comprovante),
             )
             solicitacao = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
+                VALUES (%s, 'PIX_SOLICITADO', '-', 'plano', %s)
+                """,
+                (usuario["email"], f"plano_solicitado={plano}"),
+            )
         conn.commit()
-        return solicitacao
+        return "ok", solicitacao
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -416,10 +503,59 @@ def listar_solicitacoes_pix(status: str = "pendente", limite: int = 50):
     finally:
         conn.close()
 
-def aprovar_solicitacao_pix(solicitacao_id: int):
+def aprovar_solicitacao_pix(solicitacao_id: int, admin_email: str):
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT user_id
+                FROM pix_payment_requests
+                WHERE id = %s AND status = 'pendente'
+                """,
+                (solicitacao_id,),
+            )
+            candidato = cur.fetchone()
+            if not candidato:
+                conn.rollback()
+                return None
+
+            cur.execute(
+                """
+                SELECT id, email, plano, is_admin
+                FROM users
+                WHERE id = %s
+                FOR UPDATE
+                """,
+                (candidato["user_id"],),
+            )
+            usuario = cur.fetchone()
+            if not usuario:
+                conn.rollback()
+                return "invalid"
+            plano_anterior = usuario["plano"]
+
+            cur.execute(
+                """
+                SELECT id, user_id, email, plano, valor_centavos, status
+                FROM pix_payment_requests
+                WHERE id = %s AND status = 'pendente'
+                FOR UPDATE
+                """,
+                (solicitacao_id,),
+            )
+            solicitacao = cur.fetchone()
+            if not solicitacao:
+                conn.rollback()
+                return None
+            if (
+                solicitacao["user_id"] != usuario["id"]
+                or solicitacao["plano"] not in ("popular", "premium")
+                or solicitacao["valor_centavos"] != PLANOS_VALORES[solicitacao["plano"]] * 100
+            ):
+                conn.rollback()
+                return "invalid"
+
             cur.execute(
                 """
                 UPDATE pix_payment_requests
@@ -430,9 +566,6 @@ def aprovar_solicitacao_pix(solicitacao_id: int):
                 (solicitacao_id,),
             )
             solicitacao = cur.fetchone()
-            if not solicitacao:
-                conn.rollback()
-                return None
             cur.execute(
                 """
                 UPDATE users
@@ -443,8 +576,25 @@ def aprovar_solicitacao_pix(solicitacao_id: int):
                 (solicitacao["plano"], solicitacao["user_id"]),
             )
             usuario = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
+                VALUES (%s, 'PIX_APROVADO', '-', %s, %s)
+                """,
+                (
+                    admin_email,
+                    str(solicitacao_id),
+                    (
+                        f"usuario_id={solicitacao['user_id']};"
+                        f"plano_anterior={plano_anterior};plano_novo={solicitacao['plano']}"
+                    ),
+                ),
+            )
         conn.commit()
         return {"solicitacao": solicitacao, "usuario": usuario}
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -1005,6 +1155,11 @@ async def sanitizar_erro_validacao(request: Request, erro: RequestValidationErro
             status_code=422,
             content={"detail": "Requisição de credencial Azure inválida"},
         )
+    if request.url.path in {"/me/plano", "/pix/solicitacao"}:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Requisição de atualização de plano inválida"},
+        )
     return await request_validation_exception_handler(request, erro)
 
 app.add_middleware(
@@ -1067,7 +1222,15 @@ class MeResponse(BaseModel):
     providers_configurados: list[str]
 
 class PlanoRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     plano: str
+
+class PlanoResponse(BaseModel):
+    plano_anterior: str
+    plano: str
+    alterado: bool
+    message: str
 
 class ChangePasswordRequest(BaseModel):
     senha_atual: str
@@ -1079,8 +1242,10 @@ class ChangePasswordResponse(BaseModel):
     message: str
 
 class PixRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     plano: str
-    comprovante: str = ""
+    comprovante: str = Field(default="", max_length=4096)
 
 class CredencialAWS(BaseModel):
     access_key_id: str
@@ -1541,9 +1706,22 @@ def dados_pix(usuario=Depends(usuario_atual)):
 @app.post("/pix/solicitacao")
 def solicitar_ativacao_pix(dados: PixRequest, usuario=Depends(usuario_atual)):
     if dados.plano not in ("popular", "premium"):
-        raise HTTPException(status_code=400, detail="Plano Pix invalido")
-    solicitacao = criar_solicitacao_pix(usuario, dados.plano, dados.comprovante)
-    registrar_acesso(usuario["email"], "PIX_SOLICITADO", "-", "-", f"plano {dados.plano}")
+        raise HTTPException(status_code=400, detail="Plano PIX inválido")
+    try:
+        status_solicitacao, solicitacao = criar_solicitacao_pix(
+            usuario["id"], dados.plano, dados.comprovante
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível registrar a solicitação de plano",
+        ) from None
+    if status_solicitacao == "missing_user":
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if status_solicitacao == "already_active":
+        raise HTTPException(status_code=409, detail="O plano solicitado já está ativo")
+    if status_solicitacao == "pending":
+        raise HTTPException(status_code=409, detail="Já existe uma solicitação de plano pendente")
     return {
         "id": solicitacao["id"],
         "status": solicitacao["status"],
@@ -1561,24 +1739,55 @@ def admin_listar_pix(status: str = "pendente", usuario=Depends(usuario_atual)):
 @app.post("/admin/pix/solicitacoes/{solicitacao_id}/aprovar")
 def admin_aprovar_pix(solicitacao_id: int, usuario=Depends(usuario_atual)):
     exigir_admin(usuario)
-    resultado = aprovar_solicitacao_pix(solicitacao_id)
+    try:
+        resultado = aprovar_solicitacao_pix(solicitacao_id, usuario["email"])
+    except Exception:
+        raise HTTPException(status_code=500, detail="Não foi possível aprovar a solicitação") from None
     if not resultado:
         raise HTTPException(status_code=404, detail="Solicitacao Pix pendente nao encontrada")
-    registrar_acesso(usuario["email"], "PIX_APROVADO", "-", str(solicitacao_id), resultado["usuario"]["email"])
+    if resultado == "invalid":
+        raise HTTPException(status_code=409, detail="Solicitação de plano inconsistente")
     return resultado
 
-@app.patch("/me/plano")
+@app.get("/me/plano/opcoes")
+def opcoes_atualizacao_plano(usuario=Depends(usuario_atual)):
+    return {
+        "plano_atual": usuario["plano"],
+        "opcoes": [
+            {
+                "plano": plano,
+                "valor": PLANOS_VALORES[plano],
+                "modo_ativacao": "direta" if plano == "gratuito" else "pix_aprovacao_manual",
+            }
+            for plano in PLANOS_VALIDOS
+        ],
+    }
+
+
+@app.patch("/me/plano", response_model=PlanoResponse)
 def atualizar_meu_plano(dados: PlanoRequest, usuario=Depends(usuario_atual)):
     if dados.plano not in PLANOS_VALIDOS:
-        raise HTTPException(status_code=400, detail="Plano invalido")
-    if dados.plano != "gratuito":
-        raise HTTPException(status_code=402, detail="Planos pagos exigem solicitacao Pix em /pix/solicitacao")
-    atualizado = atualizar_plano_usuario(usuario["id"], dados.plano)
-    registrar_acesso(usuario["email"], "PLANO", "-", "-", f"plano {dados.plano}")
+        raise HTTPException(status_code=400, detail="Plano inválido")
+    try:
+        atualizado = atualizar_plano_proprio(usuario["id"], dados.plano)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Não foi possível atualizar o plano") from None
+    if not atualizado:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if atualizado["bloqueado"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Planos pagos exigem solicitação PIX e aprovação manual",
+        )
     return {
-        "email": atualizado["email"],
+        "plano_anterior": atualizado["plano_anterior"],
         "plano": atualizado["plano"],
-        "is_admin": atualizado["is_admin"],
+        "alterado": atualizado["alterado"],
+        "message": (
+            "Plano atualizado com sucesso."
+            if atualizado["alterado"]
+            else "O plano informado já está ativo."
+        ),
     }
 
 # ── Rotas de gerenciamento de credenciais de nuvem ────────────

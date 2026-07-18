@@ -626,6 +626,7 @@
     let exclusaoCredencialGCPEmAndamento = false;
     let envioCredencialAzureEmAndamento = false;
     let exclusaoCredencialAzureEmAndamento = false;
+    let envioPlanoEmAndamento = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -832,11 +833,12 @@
           <div class="settings-panel">
             <div class="settings-block">
               <h3>Conta</h3>
-              <p>${nomeExibicao} (${me.email}) | Plano: ${me.plano} | Providers: ${providers}</p>
+              <p>${nomeExibicao} (${me.email}) | Plano: <strong id="plano-atual"></strong> | Providers: ${providers}</p>
               <div class="settings-actions">
-                <button class="btn-login" type="button" onclick="atualizarPlanoPrompt()">Atualizar plano</button>
+                <button class="btn-login" type="button" onclick="exibirAtualizacaoPlano()">Atualizar plano</button>
                 <button class="btn-login" type="button" onclick="exibirFormularioAlterarSenha()">Alterar senha</button>
               </div>
+              <div id="plan-update-container"></div>
               <div id="alterar-senha-container"></div>
             </div>
             <div class="settings-block">
@@ -855,6 +857,7 @@
               <div id="azure-credential-form-container"></div>
             </div>
           </div>`;
+        document.getElementById("plano-atual").textContent = me.plano;
         await carregarCredenciaisAWS();
         await carregarCredenciaisGCP();
         await carregarCredenciaisAzure();
@@ -1362,9 +1365,155 @@
       }
     }
 
-    async function atualizarPlanoPrompt() { const plano = prompt("Plano: gratuito, popular ou premium"); if (!plano) return; if (plano !== "gratuito") { return solicitarPixPrompt(plano); } try { await apiFetch("/me/plano", { method: "PATCH", json: { plano } }); setStatus("Plano atualizado", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+    async function exibirAtualizacaoPlano() {
+      const container = document.getElementById("plan-update-container");
+      container.innerHTML = '<p class="credential-empty">Carregando opções de plano...</p>';
+      try {
+        const [configuracao, pix] = await Promise.all([
+          apiFetch("/me/plano/opcoes"),
+          apiFetch("/pix"),
+        ]);
+        if (!configuracao || !Array.isArray(configuracao.opcoes)) {
+          throw new Error("Resposta inválida ao consultar opções de plano.");
+        }
+        container.innerHTML = `
+          <form id="plan-update-form" class="credential-form" autocomplete="off">
+            <div class="campo">
+              <label for="plan-update-select">Plano de destino</label>
+              <select id="plan-update-select" name="plano" required></select>
+            </div>
+            <div id="plan-update-details" class="credential-card" aria-live="polite"></div>
+            <div id="plan-update-proof-field" class="campo" hidden>
+              <label for="plan-update-proof">Identificador ou resumo do comprovante PIX</label>
+              <textarea id="plan-update-proof" name="comprovante" rows="4" maxlength="4096"
+                autocomplete="off" spellcheck="false"></textarea>
+            </div>
+            <button id="plan-update-submit" class="btn-login" type="submit">Confirmar mudança</button>
+            <button id="plan-update-cancel" class="btn-secondary" type="button">Cancelar</button>
+            <div id="plan-update-message" class="status" role="alert" aria-live="polite"></div>
+          </form>`;
 
-    async function solicitarPixPrompt(plano) { try { const pix = await apiFetch("/pix"); const dadosPlano = pix.planos[plano]; if (!dadosPlano) throw new Error("Plano Pix invalido"); const mensagem = "Pix para " + pix.recebedor + "\nChave: " + pix.chave + "\nCidade: " + pix.cidade + "\nValor: R$ " + dadosPlano.valor + "\n\nDepois de pagar, cole aqui o identificador ou resumo do comprovante:"; const comprovante = prompt(mensagem); if (comprovante === null) return; const resp = await apiFetch("/pix/solicitacao", { method: "POST", json: { plano, comprovante } }); setStatus("Solicitação Pix #" + resp.id + " enviada para aprovação manual", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
+        const form = document.getElementById("plan-update-form");
+        const select = document.getElementById("plan-update-select");
+        form.dataset.planoAtual = configuracao.plano_atual;
+        configuracao.opcoes.forEach((opcao) => {
+          if (
+            !opcao || typeof opcao.plano !== "string" ||
+            typeof opcao.valor !== "number" || typeof opcao.modo_ativacao !== "string"
+          ) {
+            throw new Error("Opção de plano inválida recebida do servidor.");
+          }
+          const item = document.createElement("option");
+          item.value = opcao.plano;
+          item.textContent = opcao.valor > 0
+            ? `${opcao.plano} — R$ ${opcao.valor}`
+            : opcao.plano;
+          item.dataset.modoAtivacao = opcao.modo_ativacao;
+          select.appendChild(item);
+        });
+        if (configuracao.opcoes.some((opcao) => opcao.plano === configuracao.plano_atual)) {
+          select.value = configuracao.plano_atual;
+        }
+
+        const atualizarDetalhes = () => {
+          const selecionado = select.options[select.selectedIndex];
+          const pago = selecionado && selecionado.dataset.modoAtivacao === "pix_aprovacao_manual";
+          const mesmoPlano = select.value === form.dataset.planoAtual;
+          const detalhes = document.getElementById("plan-update-details");
+          const comprovante = document.getElementById("plan-update-proof-field");
+          detalhes.textContent = "";
+          comprovante.hidden = !pago || mesmoPlano;
+          if (mesmoPlano) {
+            detalhes.textContent = "Este é o plano atualmente ativo. A confirmação não alterará a conta.";
+            return;
+          }
+          if (!pago) {
+            detalhes.textContent = "O plano gratuito pode ser ativado diretamente.";
+            return;
+          }
+          const dadosPlano = pix && pix.planos ? pix.planos[select.value] : null;
+          if (!dadosPlano) {
+            detalhes.textContent = "Esta operação não está disponível no momento.";
+            return;
+          }
+          const linhas = [
+            "A ativação exige pagamento PIX e aprovação manual.",
+            `Recebedor: ${pix.recebedor}`,
+            `Chave: ${pix.chave}`,
+            `Cidade: ${pix.cidade}`,
+            `Valor: R$ ${dadosPlano.valor}`,
+          ];
+          linhas.forEach((texto) => {
+            const linha = document.createElement("p");
+            linha.textContent = texto;
+            detalhes.appendChild(linha);
+          });
+        };
+
+        select.addEventListener("change", atualizarDetalhes);
+        form.addEventListener("submit", salvarAtualizacaoPlano);
+        document.getElementById("plan-update-cancel").addEventListener("click", () => {
+          form.reset();
+          container.innerHTML = "";
+        });
+        atualizarDetalhes();
+      } catch (e) {
+        container.innerHTML = "";
+        setStatus("Erro: " + (e.message || "Não foi possível carregar as opções de plano."), "error");
+      }
+    }
+
+    async function salvarAtualizacaoPlano(event) {
+      event.preventDefault();
+      if (envioPlanoEmAndamento) return;
+
+      const form = event.currentTarget;
+      const select = form.elements.plano;
+      const plano = select.value;
+      const selecionado = select.options[select.selectedIndex];
+      const pago = selecionado && selecionado.dataset.modoAtivacao === "pix_aprovacao_manual";
+      const solicitarPix = pago && plano !== form.dataset.planoAtual;
+      const comprovante = form.elements.comprovante.value.trim();
+      const mensagem = document.getElementById("plan-update-message");
+      const botao = document.getElementById("plan-update-submit");
+      if (!plano) {
+        mensagem.textContent = "Selecione um plano permitido.";
+        mensagem.className = "status error";
+        return;
+      }
+      if (!confirm(`Confirmar a operação para o plano ${plano}?`)) return;
+
+      envioPlanoEmAndamento = true;
+      botao.disabled = true;
+      try {
+        if (solicitarPix) {
+          const resposta = await apiFetch("/pix/solicitacao", {
+            method: "POST",
+            json: { plano, comprovante },
+          });
+          form.reset();
+          await exibirConfiguracoes();
+          setStatus(
+            `Solicitação PIX #${resposta.id} enviada. O plano só será ativado após aprovação manual.`,
+            "success"
+          );
+        } else {
+          const resposta = await apiFetch("/me/plano", {
+            method: "PATCH",
+            json: { plano },
+          });
+          form.reset();
+          await exibirConfiguracoes();
+          setStatus(resposta.message || "Plano atualizado com sucesso.", "success");
+        }
+      } catch (e) {
+        mensagem.textContent = e.message || "Operação de plano não permitida.";
+        mensagem.className = "status error";
+      } finally {
+        envioPlanoEmAndamento = false;
+        botao.disabled = false;
+      }
+    }
 
 
     function formatDate(str) {
