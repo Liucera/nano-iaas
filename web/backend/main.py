@@ -18,7 +18,10 @@ from botocore.exceptions import ClientError
 from azure.core.exceptions import AzureError
 
 from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -844,6 +847,16 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI(title="Nano-IaaS Web")
+
+
+@app.exception_handler(RequestValidationError)
+async def sanitizar_erro_validacao(request: Request, erro: RequestValidationError):
+    if request.url.path == "/credenciais/gcp":
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Requisição de credencial GCP inválida"},
+        )
+    return await request_validation_exception_handler(request, erro)
 
 app.add_middleware(
     CORSMiddleware,

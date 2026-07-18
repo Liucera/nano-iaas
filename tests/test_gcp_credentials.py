@@ -1,4 +1,5 @@
 import copy
+import asyncio
 import json
 import os
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 import pydantic
 from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
 
 
 os.environ.setdefault("NANO_IAAS_SECRET_KEY", "gcp-credentials-test-secret")
@@ -381,6 +383,46 @@ def test_missing_wrapper_field_is_handled_without_pydantic_echo():
         backend.validar_credencial_gcp(backend.CredencialGCP())
     assert error.value.status_code == 400
     assert error.value.detail == "JSON da credencial GCP inválido"
+
+
+def test_oversized_service_account_json_is_rejected_without_echo():
+    oversized = "sensitive-marker-" + ("x" * 65536)
+    with pytest.raises(HTTPException) as error:
+        backend.validar_credencial_gcp(
+            backend.CredencialGCP(service_account_json=oversized)
+        )
+    assert error.value.status_code == 400
+    assert error.value.detail == "JSON da credencial GCP inválido"
+    assert "sensitive-marker" not in error.value.detail
+
+
+def test_422_validation_handler_never_echoes_invalid_gcp_input():
+    request = backend.Request({
+        "type": "http",
+        "method": "POST",
+        "scheme": "https",
+        "path": "/credenciais/gcp",
+        "root_path": "",
+        "query_string": b"",
+        "headers": [],
+        "server": ("test", 443),
+    })
+    error = RequestValidationError([
+        {
+            "type": "model_attributes_type",
+            "loc": ("body",),
+            "msg": "Input should be a valid dictionary",
+            "input": PRIVATE_KEY_ONE,
+        }
+    ])
+
+    response = asyncio.run(backend.sanitizar_erro_validacao(request, error))
+
+    assert response.status_code == 422
+    assert json.loads(response.body) == {
+        "detail": "Requisição de credencial GCP inválida"
+    }
+    assert PRIVATE_KEY_ONE.encode() not in response.body
 
 
 def test_schema_and_sql_contract_support_gcp_without_migration():
