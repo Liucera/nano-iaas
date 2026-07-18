@@ -21,6 +21,28 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
+### Estado oficial em 18/07/2026
+
+- Macroetapas 1, 2 e 3: concluídas;
+- Macroetapa 4 — Telas essenciais: em andamento;
+- Cadastro: concluído;
+- Credenciais AWS: concluído e publicado no backend ECS `nano-iaas-backend-dev:8`;
+- Credenciais GCP: em andamento neste bloco, limitado ao cadastro e gerenciamento seguro da credencial;
+- validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
+
+A fonte vigente deste bloco é a `main` no commit `421cd8ac333be226055fba8c3b105026dd42c111`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:8`.
+
+### Repositórios oficiais e responsabilidades
+
+O projeto possui dois repositórios com responsabilidades separadas:
+
+| Repositório | Responsabilidade |
+|---|---|
+| [`Liucera/nano-iaas`](https://github.com/Liucera/nano-iaas) | Fonte oficial do produto: backend, frontend autenticado em `docs/`, CLI, providers, testes, infraestrutura Terraform e fluxo de build/deploy do backend. O frontend legado do aplicativo é publicado a partir de `main:/docs` em <https://app.nano-iaas.com.br>. |
+| [`Liucera/Liucera.github.io`](https://github.com/Liucera/Liucera.github.io) | Fonte oficial do site institucional do Nano-IaaS, publicado no domínio principal <https://nano-iaas.com.br> pelo Cloudflare Pages. |
+
+Alterações dos dois repositórios não podem ser misturadas em uma mesma branch, commit, PR ou operação de deploy. Código, infraestrutura e deploy do aplicativo/API pertencem exclusivamente ao `Liucera/nano-iaas`; o `Liucera/Liucera.github.io` permanece restrito ao site institucional.
+
 Domínios planejados:
 - Dashboard: https://app.nano-iaas.com.br
 - API Docs: https://api.nano-iaas.com.br/docs
