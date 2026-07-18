@@ -26,17 +26,22 @@ class BlobReader(CloudProvider):
         """
         try:
             import os
-            connection_string = profile.get('connection_string') or os.environ.get(
-                'AZURE_STORAGE_CONNECTION_STRING'
-            )
+            connection_string = profile.get('connection_string')
+            if profile and not connection_string:
+                # O cadastro por service principal e suportado pelo backend, mas
+                # sua validacao real pertence a Macroetapa 6. Nao use a
+                # credencial do sistema quando o usuario possui perfil proprio.
+                print("❌ Credencial Azure pendente de validação")
+                return False
+            connection_string = connection_string or os.environ.get('AZURE_STORAGE_CONNECTION_STRING')
             if not connection_string:
                 print("❌ Nenhuma connection string do Azure disponivel")
                 return False
 
             self.client = BlobServiceClient.from_connection_string(connection_string)
             return True
-        except Exception as e:
-            print(f"❌ Erro ao autenticar no Azure: {e}")
+        except Exception:
+            print("❌ Erro ao autenticar no Azure")
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
@@ -48,8 +53,8 @@ class BlobReader(CloudProvider):
                     'created': container['last_modified'].isoformat() if container.get('last_modified') else None,
                     'type': 'container'
                 }
-        except AzureError as e:
-            print(f"❌ Erro ao listar containers: {e}")
+        except AzureError:
+            print("❌ Erro ao listar containers")
 
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
         """
@@ -90,8 +95,8 @@ class BlobReader(CloudProvider):
                     yield record
                     count += 1
 
-        except AzureError as e:
-            print(f"❌ Erro ao ler Blob Storage: {e}")
+        except AzureError:
+            print("❌ Erro ao ler Blob Storage")
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
         path = resource_path.replace('azure://', '')
@@ -111,5 +116,5 @@ class BlobReader(CloudProvider):
                 'content_type': props.content_settings.content_type if props.content_settings else 'unknown',
                 'etag': props.etag
             }
-        except AzureError as e:
-            return {'error': str(e)}
+        except AzureError:
+            return {'error': 'Não foi possível consultar os metadados no Azure Blob Storage'}

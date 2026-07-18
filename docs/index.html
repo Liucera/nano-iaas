@@ -624,6 +624,8 @@
     let exclusaoCredencialAWSEmAndamento = false;
     let envioCredencialGCPEmAndamento = false;
     let exclusaoCredencialGCPEmAndamento = false;
+    let envioCredencialAzureEmAndamento = false;
+    let exclusaoCredencialAzureEmAndamento = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -848,14 +850,14 @@
               <div id="gcp-credential-form-container"></div>
             </div>
             <div class="settings-block">
-              <h3>Outros providers</h3>
-              <div class="settings-actions">
-                <button class="btn-login" type="button" onclick="salvarCredencialAzurePrompt()">Salvar Azure</button>
-              </div>
+              <h3>Credenciais Azure</h3>
+              <div id="azure-credentials-container" aria-live="polite"></div>
+              <div id="azure-credential-form-container"></div>
             </div>
           </div>`;
         await carregarCredenciaisAWS();
         await carregarCredenciaisGCP();
+        await carregarCredenciaisAzure();
         setStatus("Configurações carregadas", "success");
       } catch (e) {
         setStatus("Erro: " + e.message, "error");
@@ -1130,6 +1132,160 @@
       }
     }
 
+    async function carregarCredenciaisAzure() {
+      const container = document.getElementById("azure-credentials-container");
+      const credenciais = await apiFetch("/credenciais/azure");
+      if (!Array.isArray(credenciais)) {
+        throw new Error("Resposta inválida ao listar credenciais Azure.");
+      }
+      if (credenciais.length === 0) {
+        container.innerHTML = `
+          <p class="credential-empty">Nenhuma credencial Azure cadastrada.</p>
+          <button id="azure-credential-create" class="btn-login" type="button">Cadastrar credencial Azure</button>`;
+        document.getElementById("azure-credential-create").addEventListener(
+          "click", () => exibirFormularioCredencialAzure("cadastrar")
+        );
+        return;
+      }
+
+      const credencial = credenciais[0];
+      if (
+        typeof credencial.tenant_id_masked !== "string" ||
+        typeof credencial.client_id_masked !== "string" ||
+        typeof credencial.subscription_id_masked !== "string"
+      ) {
+        throw new Error("Resposta inválida ao listar credenciais Azure.");
+      }
+      container.innerHTML = `
+        <div class="credential-card">
+          <p>Tenant ID: <code id="azure-tenant-id-masked"></code></p>
+          <p>Client ID: <code id="azure-client-id-masked"></code></p>
+          <p>Subscription ID: <code id="azure-subscription-id-masked"></code></p>
+          <div class="settings-actions">
+            <button id="azure-credential-replace" class="btn-login" type="button">Substituir</button>
+            <button id="azure-credential-delete" class="btn-login btn-danger" type="button">Excluir</button>
+          </div>
+        </div>`;
+      document.getElementById("azure-tenant-id-masked").textContent = credencial.tenant_id_masked;
+      document.getElementById("azure-client-id-masked").textContent = credencial.client_id_masked;
+      document.getElementById("azure-subscription-id-masked").textContent =
+        credencial.subscription_id_masked;
+      document.getElementById("azure-credential-replace").addEventListener(
+        "click", () => exibirFormularioCredencialAzure("substituir")
+      );
+      document.getElementById("azure-credential-delete").addEventListener(
+        "click", excluirCredencialAzure
+      );
+    }
+
+    function exibirFormularioCredencialAzure(modo) {
+      const substituir = modo === "substituir";
+      const container = document.getElementById("azure-credential-form-container");
+      container.innerHTML = `
+        <form id="azure-credential-form" class="credential-form azure-credential-form" autocomplete="off">
+          <div class="campo">
+            <label for="azure-tenant-id">Tenant ID</label>
+            <input id="azure-tenant-id" name="tenant_id" type="text" maxlength="64"
+              autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
+          <div class="campo">
+            <label for="azure-client-id">Client ID</label>
+            <input id="azure-client-id" name="client_id" type="text" maxlength="64"
+              autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
+          <div class="campo">
+            <label for="azure-client-secret">Client Secret</label>
+            <input id="azure-client-secret" name="client_secret" type="password" maxlength="4096"
+              autocomplete="off" spellcheck="false" required>
+          </div>
+          <div class="campo">
+            <label for="azure-subscription-id">Subscription ID</label>
+            <input id="azure-subscription-id" name="subscription_id" type="text" maxlength="64"
+              autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
+          <button id="azure-credential-submit" class="btn-login" type="submit">
+            ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
+          </button>
+          <button id="azure-credential-cancel" class="btn-secondary" type="button">Cancelar</button>
+          <div id="azure-credential-message" class="status" role="alert" aria-live="polite"></div>
+        </form>`;
+      const form = document.getElementById("azure-credential-form");
+      form.dataset.mode = substituir ? "substituir" : "cadastrar";
+      form.addEventListener("submit", salvarCredencialAzure);
+      document.getElementById("azure-credential-cancel").addEventListener("click", () => {
+        form.reset();
+        container.innerHTML = "";
+      });
+      document.getElementById("azure-tenant-id").focus();
+    }
+
+    async function salvarCredencialAzure(event) {
+      event.preventDefault();
+      if (envioCredencialAzureEmAndamento) return;
+
+      const form = event.currentTarget;
+      const tenantId = form.elements.tenant_id.value.trim();
+      const clientId = form.elements.client_id.value.trim();
+      const clientSecret = form.elements.client_secret.value.trim();
+      const subscriptionId = form.elements.subscription_id.value.trim();
+      const substituir = form.dataset.mode === "substituir";
+      const mensagem = document.getElementById("azure-credential-message");
+      const botao = document.getElementById("azure-credential-submit");
+
+      if (!tenantId || !clientId || !clientSecret || !subscriptionId) {
+        mensagem.textContent = "Preencha os quatro campos da credencial Azure.";
+        mensagem.className = "status error";
+        return;
+      }
+
+      envioCredencialAzureEmAndamento = true;
+      botao.disabled = true;
+      try {
+        await apiFetch("/credenciais/azure", {
+          method: substituir ? "PUT" : "POST",
+          json: {
+            tenant_id: tenantId,
+            client_id: clientId,
+            client_secret: clientSecret,
+            subscription_id: subscriptionId,
+          },
+        });
+        form.reset();
+        document.getElementById("azure-credential-form-container").innerHTML = "";
+        await carregarCredenciaisAzure();
+        setStatus(
+          substituir ? "Credencial Azure substituída com sucesso." : "Credencial Azure cadastrada com sucesso.",
+          "success"
+        );
+      } catch (e) {
+        mensagem.textContent = e.message || "Não foi possível salvar a credencial Azure.";
+        mensagem.className = "status error";
+      } finally {
+        envioCredencialAzureEmAndamento = false;
+        botao.disabled = false;
+      }
+    }
+
+    async function excluirCredencialAzure() {
+      if (exclusaoCredencialAzureEmAndamento) return;
+      if (!confirm("Excluir a credencial Azure cadastrada? Esta ação não pode ser desfeita.")) return;
+
+      exclusaoCredencialAzureEmAndamento = true;
+      const botao = document.getElementById("azure-credential-delete");
+      if (botao) botao.disabled = true;
+      try {
+        await apiFetch("/credenciais/azure", { method: "DELETE" });
+        document.getElementById("azure-credential-form-container").innerHTML = "";
+        await carregarCredenciaisAzure();
+        setStatus("Credencial Azure excluída com sucesso.", "success");
+      } catch (e) {
+        setStatus("Erro: " + e.message, "error");
+      } finally {
+        exclusaoCredencialAzureEmAndamento = false;
+        if (botao && document.body.contains(botao)) botao.disabled = false;
+      }
+    }
+
     function exibirFormularioAlterarSenha() {
       const container = document.getElementById("alterar-senha-container");
       container.innerHTML = `
@@ -1210,7 +1366,6 @@
 
     async function solicitarPixPrompt(plano) { try { const pix = await apiFetch("/pix"); const dadosPlano = pix.planos[plano]; if (!dadosPlano) throw new Error("Plano Pix invalido"); const mensagem = "Pix para " + pix.recebedor + "\nChave: " + pix.chave + "\nCidade: " + pix.cidade + "\nValor: R$ " + dadosPlano.valor + "\n\nDepois de pagar, cole aqui o identificador ou resumo do comprovante:"; const comprovante = prompt(mensagem); if (comprovante === null) return; const resp = await apiFetch("/pix/solicitacao", { method: "POST", json: { plano, comprovante } }); setStatus("Solicitação Pix #" + resp.id + " enviada para aprovação manual", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
-    async function salvarCredencialAzurePrompt() { const connection_string = prompt("Azure connection string"); if (!connection_string) return; try { await apiFetch("/credenciais/azure", { method: "POST", json: { connection_string } }); setStatus("Credencial Azure salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
     function formatDate(str) {
       if (!str || str === '—') return '—';
