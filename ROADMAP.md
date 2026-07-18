@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
 **Última atualização:** 18/07/2026
-**Percentual total formal do projeto:** **35%**
+**Percentual total formal do projeto:** **36,67%**
 
 ## Governança
 
@@ -22,7 +22,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
-| 4 | Telas essenciais | `[~]` | 50% da macroetapa (5% do projeto) | Cadastro, Credenciais AWS e Credenciais GCP concluídos; Credenciais Azure em andamento. |
+| 4 | Telas essenciais | `[~]` | 66,67% da macroetapa (6,67% do projeto) | Cadastro e credenciais AWS, GCP e Azure concluídos; Atualização do próprio plano em andamento. |
 | 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -51,23 +51,23 @@ O domínio principal foi concluído formalmente. A situação institucional atua
 
 ## Macroetapa 4 — Telas essenciais `[~]`
 
-A macroetapa 4 está em andamento. Cadastro, Credenciais AWS e Credenciais GCP foram concluídos formalmente. O bloco atual é Credenciais Azure e contempla somente cadastro, listagem segura, substituição e exclusão da credencial. A validação real contra a Microsoft Azure permanece reservada para a Macroetapa 6.
+A macroetapa 4 está em andamento. Cadastro e credenciais AWS, GCP e Azure foram concluídos formalmente. O bloco atual é Atualização do próprio plano e deve respeitar exclusivamente as regras comerciais e os mecanismos de autorização já versionados.
 
 Referência operacional vigente:
 
-- commit da `main`: `ad327c76f8dc099f3d2df4be276ccd0a41025605`;
-- backend em produção: ECS task definition `nano-iaas-backend-dev:9`.
+- commit da `main`: `3688d5deb0444e319d37f3694ec7002bf8034e16`;
+- backend em produção: ECS task definition `nano-iaas-backend-dev:10`.
 
 Subitens previstos, na ordem de execução controlada:
 
 - Cadastro `[x]`;
 - Credenciais AWS `[x]`;
 - Credenciais GCP `[x]`;
-- Credenciais Azure `[~]`;
-- Atualização do próprio plano `[ ]`;
+- Credenciais Azure `[x]`;
+- Atualização do próprio plano `[~]`;
 - Revisão geral das mensagens de erro e sucesso `[ ]`.
 
-Três dos seis blocos internos estão formalmente concluídos. Isso representa 50% da macroetapa 4 e 5% do projeto.
+Quatro dos seis blocos internos estão formalmente concluídos. Isso representa 66,67% da macroetapa 4 e 6,67% do projeto.
 
 ## Repositórios oficiais
 
@@ -96,16 +96,16 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 3 macroetapas concluídas × 10% = 30%;
-- 3 dos 6 blocos da macroetapa 4 concluídos = 5%;
+- 4 dos 6 blocos da macroetapa 4 concluídos = 6,67%;
 - macroetapas 5 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 35%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 36,67%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Concluir a implementação e a validação local do bloco Credenciais Azure.
+1. Concluir a auditoria, implementação e validação local do bloco Atualização do próprio plano.
 2. Submeter uma única PR para revisão, sem auto-merge.
-3. Não iniciar Atualização do próprio plano antes da conclusão formal do bloco Azure.
-4. Não executar validação real contra a Microsoft Azure antes da Macroetapa 6.
+3. Não iniciar a revisão geral de mensagens antes da conclusão formal deste bloco.
+4. Não criar novas regras comerciais, gateways ou fluxos de pagamento neste bloco.

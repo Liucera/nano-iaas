@@ -28,10 +28,11 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 - Cadastro `[x]`;
 - Credenciais AWS `[x]`;
 - Credenciais GCP `[x]`;
-- Credenciais Azure `[~]`, limitada neste bloco ao cadastro e gerenciamento seguro da credencial;
+- Credenciais Azure `[x]`;
+- Atualização do próprio plano `[~]`, limitada às regras comerciais e aos mecanismos de autorização já existentes;
 - validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
 
-A fonte vigente deste bloco é a `main` no commit `ad327c76f8dc099f3d2df4be276ccd0a41025605`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:9`.
+A fonte vigente deste bloco é a `main` no commit `3688d5deb0444e319d37f3694ec7002bf8034e16`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:10`.
 
 ### Repositórios oficiais e responsabilidades
 
