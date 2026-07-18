@@ -191,6 +191,16 @@ def test_request_rejects_attempts_to_change_user_or_admin(extra):
         backend.PlanoRequest.model_validate({"plano": "gratuito", **extra})
 
 
+def test_pix_request_rejects_client_defined_price_and_identity():
+    with pytest.raises(ValidationError):
+        backend.PixRequest.model_validate({
+            "plano": "popular",
+            "comprovante": PAYMENT_PROOF,
+            "valor": 1,
+            "user_id": USER_TWO["id"],
+        })
+
+
 def test_invalid_and_paid_direct_updates_are_rejected(fake_database):
     state, _ = fake_database
     before = copy.deepcopy(state)
@@ -258,6 +268,30 @@ def test_paid_plan_requires_pending_pix_then_admin_approval(fake_database):
     assert result["usuario"]["plano"] == "premium"
     assert state["users"][81]["plano"] == "premium"
     assert "PIX_APROVADO" in repr(state["audits"])
+    assert "usuario_id=81;plano_anterior=gratuito;plano_novo=premium" in repr(state["audits"])
+
+    with pytest.raises(HTTPException) as reused:
+        backend.admin_aprovar_pix(request["id"], ADMIN)
+    assert reused.value.status_code == 404
+
+
+def test_common_user_cannot_approve_or_reuse_rejected_request(fake_database):
+    state, _ = fake_database
+    state["users"][81]["plano"] = "gratuito"
+    request = backend.solicitar_ativacao_pix(
+        backend.PixRequest(plano="popular", comprovante=PAYMENT_PROOF),
+        {**USER_ONE, "plano": "gratuito"},
+    )
+    with pytest.raises(HTTPException) as forbidden:
+        backend.admin_aprovar_pix(request["id"], USER_ONE)
+    assert forbidden.value.status_code == 403
+    assert state["users"][81]["plano"] == "gratuito"
+
+    state["pix"][request["id"]]["status"] = "rejeitado"
+    with pytest.raises(HTTPException) as rejected:
+        backend.admin_aprovar_pix(request["id"], ADMIN)
+    assert rejected.value.status_code == 404
+    assert state["users"][81]["plano"] == "gratuito"
 
 
 def test_pix_audit_failure_rolls_back_request(monkeypatch, fake_database):

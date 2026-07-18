@@ -584,7 +584,10 @@ def aprovar_solicitacao_pix(solicitacao_id: int, admin_email: str):
                 (
                     admin_email,
                     str(solicitacao_id),
-                    f"plano_anterior={plano_anterior};plano_novo={solicitacao['plano']}",
+                    (
+                        f"usuario_id={solicitacao['user_id']};"
+                        f"plano_anterior={plano_anterior};plano_novo={solicitacao['plano']}"
+                    ),
                 ),
             )
         conn.commit()

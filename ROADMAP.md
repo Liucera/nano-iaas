@@ -53,6 +53,8 @@ O domínio principal foi concluído formalmente. A situação institucional atua
 
 A macroetapa 4 está em andamento. Cadastro e credenciais AWS, GCP e Azure foram concluídos formalmente. O bloco atual é Atualização do próprio plano e deve respeitar exclusivamente as regras comerciais e os mecanismos de autorização já versionados.
 
+O fluxo comercial vigente mantém os planos Gratuito, Popular e Premium e os valores já definidos no servidor. A mudança direta é permitida somente para o Gratuito ou para manter o plano atual. Popular e Premium dependem de solicitação PIX pendente e aprovação administrativa manual; a solicitação isolada não altera o plano. Nenhum gateway ou regra comercial nova integra este bloco.
+
 Referência operacional vigente:
 
 - commit da `main`: `3688d5deb0444e319d37f3694ec7002bf8034e16`;

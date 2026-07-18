@@ -34,6 +34,15 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 
 A fonte vigente deste bloco é a `main` no commit `3688d5deb0444e319d37f3694ec7002bf8034e16`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:10`.
 
+### Planos e fluxo comercial vigente
+
+- planos permitidos pelo servidor: `gratuito`, `popular` e `premium`;
+- valores já versionados: Gratuito R$ 0, Popular R$ 100 e Premium R$ 1.000;
+- o próprio usuário pode manter o plano atual ou mudar diretamente para o Gratuito;
+- Popular e Premium exigem solicitação PIX com valor definido pelo servidor e aprovação administrativa manual;
+- criar uma solicitação não ativa o plano pago; a alteração ocorre somente após aprovação válida da solicitação pendente;
+- este bloco não adiciona gateway, nova cobrança, novo plano, novo preço ou ativação paga automática.
+
 ### Repositórios oficiais e responsabilidades
 
 O projeto possui dois repositórios com responsabilidades separadas:
