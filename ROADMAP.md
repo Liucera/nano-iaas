@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
-**Última atualização:** 15/07/2026
-**Percentual total formal do projeto:** **30%**
+**Última atualização:** 18/07/2026
+**Percentual total formal do projeto:** **33,33%**
 
 ## Governança
 
@@ -22,7 +22,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
-| 4 | Telas essenciais | `[~]` | 0% formal (0% do projeto) | Primeiro bloco do cadastro implementado localmente e em validação; conclusão formal ainda pendente. |
+| 4 | Telas essenciais | `[~]` | 33,33% da macroetapa (3,33% do projeto) | Cadastro e Credenciais AWS concluídos; Credenciais GCP em andamento. |
 | 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -51,20 +51,34 @@ O domínio principal foi concluído formalmente. A situação institucional atua
 
 ## Macroetapa 4 — Telas essenciais `[~]`
 
-A macroetapa 4 está em andamento. O commit Terraform foi transportado para a branch `status4-cadastro`, e o primeiro bloco do cadastro foi implementado localmente. A suíte de testes foi executada com sucesso antes desta rodada de correções.
+A macroetapa 4 está em andamento. O Cadastro e o gerenciamento de Credenciais AWS foram concluídos formalmente. O bloco atual é Credenciais GCP e contempla somente cadastro, listagem segura, substituição e exclusão da credencial. A validação real contra o Google Cloud permanece reservada para a Macroetapa 6.
 
-O cadastro ainda não está concluído formalmente. Permanecem necessárias a validação final, a revisão, o commit, a aplicação controlada futura e a validação pós-deploy.
+Referência operacional vigente:
+
+- commit da `main`: `421cd8ac333be226055fba8c3b105026dd42c111`;
+- backend em produção: ECS task definition `nano-iaas-backend-dev:8`.
 
 Subitens previstos, na ordem de execução controlada:
 
-- cadastro completo;
-- credenciais AWS;
-- credenciais GCP;
-- credenciais Azure;
-- atualização do próprio plano;
-- revisão geral das mensagens de erro e sucesso.
+- Cadastro `[x]`;
+- Credenciais AWS `[x]`;
+- Credenciais GCP `[~]`;
+- Credenciais Azure `[ ]`;
+- Atualização do próprio plano `[ ]`;
+- Revisão geral das mensagens de erro e sucesso `[ ]`.
 
-O primeiro bloco do cadastro está implementado localmente, mas ainda não recebeu conclusão formal. Portanto, a macroetapa 4 continua contribuindo com 0% para o percentual formal do projeto.
+Dois dos seis blocos internos estão formalmente concluídos. Isso representa 33,33% da macroetapa 4 e 3,33% do projeto.
+
+## Repositórios oficiais
+
+As fontes oficiais foram verificadas pelos remotos e responsabilidades publicadas:
+
+| Repositório | Função oficial |
+|---|---|
+| [`Liucera/nano-iaas`](https://github.com/Liucera/nano-iaas) | Código do produto, backend, frontend autenticado, CLI, providers, testes, infraestrutura Terraform e origem do build/deploy do aplicativo e da API. O frontend legado usa GitHub Pages em `main:/docs`. |
+| [`Liucera/Liucera.github.io`](https://github.com/Liucera/Liucera.github.io) | Código do site institucional oficial do Nano-IaaS, publicado no domínio principal pelo Cloudflare Pages. |
+
+É proibido misturar alterações, histórico, branches, PRs ou operações de deploy entre esses repositórios. Mudanças de código, infraestrutura e deploy do aplicativo/API pertencem ao `Liucera/nano-iaas`; mudanças do site institucional pertencem ao `Liucera/Liucera.github.io`.
 
 ## Macroetapas futuras
 
@@ -82,17 +96,16 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 3 macroetapas concluídas × 10% = 30%;
-- macroetapa 4 sem entrega funcional concluída = 0%;
+- 2 dos 6 blocos da macroetapa 4 concluídos = 3,33%;
 - macroetapas 5 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 30%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 33,33%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Concluir a validação final do primeiro bloco do cadastro.
-2. Apresentar testes e diff atualizados para revisão.
-3. Criar commit somente após autorização explícita.
-4. Planejar a aplicação controlada futura somente após aprovação.
-5. Executar validação pós-deploy quando a aplicação for autorizada.
+1. Concluir a implementação e a validação local do bloco Credenciais GCP.
+2. Submeter uma única PR para revisão, sem auto-merge.
+3. Não iniciar Credenciais Azure antes da conclusão formal do bloco GCP.
+4. Não executar validação real contra o Google Cloud antes da Macroetapa 6.
