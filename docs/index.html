@@ -154,7 +154,7 @@
     .credential-card code { color: #f1f5f9; }
     .credential-empty { color: #B0B0B0; font-size: 13px; margin-bottom: 10px; }
     .btn-danger { background: #991b1b; }
-    .aws-credential-form { margin-top: 14px; max-width: 620px; }
+    .credential-form { margin-top: 14px; max-width: 620px; }
 
     .erro-login {
       background: #1f0a0a;
@@ -622,6 +622,8 @@
     let envioAlteracaoSenhaEmAndamento = false;
     let envioCredencialAWSEmAndamento = false;
     let exclusaoCredencialAWSEmAndamento = false;
+    let envioCredencialGCPEmAndamento = false;
+    let exclusaoCredencialGCPEmAndamento = false;
 
     if (token) {
       document.addEventListener('DOMContentLoaded', () => {
@@ -841,14 +843,19 @@
               <div id="aws-credential-form-container"></div>
             </div>
             <div class="settings-block">
+              <h3>Credenciais GCP</h3>
+              <div id="gcp-credentials-container" aria-live="polite"></div>
+              <div id="gcp-credential-form-container"></div>
+            </div>
+            <div class="settings-block">
               <h3>Outros providers</h3>
               <div class="settings-actions">
                 <button class="btn-login" type="button" onclick="salvarCredencialAzurePrompt()">Salvar Azure</button>
-                <button class="btn-login" type="button" onclick="salvarCredencialGCPPrompt()">Salvar GCP</button>
               </div>
             </div>
           </div>`;
         await carregarCredenciaisAWS();
+        await carregarCredenciaisGCP();
         setStatus("Configurações carregadas", "success");
       } catch (e) {
         setStatus("Erro: " + e.message, "error");
@@ -903,7 +910,7 @@
       const substituir = modo === "substituir";
       const container = document.getElementById("aws-credential-form-container");
       container.innerHTML = `
-        <form id="aws-credential-form" class="aws-credential-form" autocomplete="off">
+        <form id="aws-credential-form" class="credential-form aws-credential-form" autocomplete="off">
           <div class="campo">
             <label for="aws-access-key-id">Access Key ID</label>
             <input id="aws-access-key-id" name="access_key_id" type="text"
@@ -994,6 +1001,135 @@
       }
     }
 
+    async function carregarCredenciaisGCP() {
+      const container = document.getElementById("gcp-credentials-container");
+      const credenciais = await apiFetch("/credenciais/gcp");
+      if (!Array.isArray(credenciais)) {
+        throw new Error("Resposta inválida ao listar credenciais GCP.");
+      }
+      if (credenciais.length === 0) {
+        container.innerHTML = `
+          <p class="credential-empty">Nenhuma credencial GCP cadastrada.</p>
+          <button id="gcp-credential-create" class="btn-login" type="button">Cadastrar credencial GCP</button>`;
+        document.getElementById("gcp-credential-create").addEventListener(
+          "click", () => exibirFormularioCredencialGCP("cadastrar")
+        );
+        return;
+      }
+
+      const credencial = credenciais[0];
+      if (
+        typeof credencial.project_id !== "string" ||
+        typeof credencial.client_email_masked !== "string"
+      ) {
+        throw new Error("Resposta inválida ao listar credenciais GCP.");
+      }
+      container.innerHTML = `
+        <div class="credential-card">
+          <p>Project ID: <code id="gcp-project-id"></code></p>
+          <p>Client email: <code id="gcp-client-email-masked"></code></p>
+          <div class="settings-actions">
+            <button id="gcp-credential-replace" class="btn-login" type="button">Substituir</button>
+            <button id="gcp-credential-delete" class="btn-login btn-danger" type="button">Excluir</button>
+          </div>
+        </div>`;
+      document.getElementById("gcp-project-id").textContent = credencial.project_id;
+      document.getElementById("gcp-client-email-masked").textContent =
+        credencial.client_email_masked;
+      document.getElementById("gcp-credential-replace").addEventListener(
+        "click", () => exibirFormularioCredencialGCP("substituir")
+      );
+      document.getElementById("gcp-credential-delete").addEventListener(
+        "click", excluirCredencialGCP
+      );
+    }
+
+    function exibirFormularioCredencialGCP(modo) {
+      const substituir = modo === "substituir";
+      const container = document.getElementById("gcp-credential-form-container");
+      container.innerHTML = `
+        <form id="gcp-credential-form" class="credential-form gcp-credential-form" autocomplete="off">
+          <div class="campo">
+            <label for="gcp-service-account-json">JSON da service account</label>
+            <textarea id="gcp-service-account-json" name="service_account_json" rows="10"
+              maxlength="65536" autocomplete="off" autocapitalize="none"
+              spellcheck="false" required></textarea>
+          </div>
+          <button id="gcp-credential-submit" class="btn-login" type="submit">
+            ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
+          </button>
+          <button id="gcp-credential-cancel" class="btn-secondary" type="button">Cancelar</button>
+          <div id="gcp-credential-message" class="status" role="alert" aria-live="polite"></div>
+        </form>`;
+      const form = document.getElementById("gcp-credential-form");
+      form.dataset.mode = substituir ? "substituir" : "cadastrar";
+      form.addEventListener("submit", salvarCredencialGCP);
+      document.getElementById("gcp-credential-cancel").addEventListener("click", () => {
+        form.reset();
+        container.innerHTML = "";
+      });
+      document.getElementById("gcp-service-account-json").focus();
+    }
+
+    async function salvarCredencialGCP(event) {
+      event.preventDefault();
+      if (envioCredencialGCPEmAndamento) return;
+
+      const form = event.currentTarget;
+      const serviceAccountJson = form.elements.service_account_json.value.trim();
+      const substituir = form.dataset.mode === "substituir";
+      const mensagem = document.getElementById("gcp-credential-message");
+      const botao = document.getElementById("gcp-credential-submit");
+
+      if (!serviceAccountJson) {
+        mensagem.textContent = "Informe o JSON da service account GCP.";
+        mensagem.className = "status error";
+        return;
+      }
+
+      envioCredencialGCPEmAndamento = true;
+      botao.disabled = true;
+      try {
+        await apiFetch("/credenciais/gcp", {
+          method: substituir ? "PUT" : "POST",
+          json: { service_account_json: serviceAccountJson },
+        });
+        form.reset();
+        document.getElementById("gcp-credential-form-container").innerHTML = "";
+        await carregarCredenciaisGCP();
+        setStatus(
+          substituir ? "Credencial GCP substituída com sucesso." : "Credencial GCP cadastrada com sucesso.",
+          "success"
+        );
+      } catch (e) {
+        mensagem.textContent = e.message || "Não foi possível salvar a credencial GCP.";
+        mensagem.className = "status error";
+      } finally {
+        envioCredencialGCPEmAndamento = false;
+        botao.disabled = false;
+      }
+    }
+
+    async function excluirCredencialGCP() {
+      if (exclusaoCredencialGCPEmAndamento) return;
+      if (!confirm("Excluir a credencial GCP cadastrada? Esta ação não pode ser desfeita.")) return;
+
+      exclusaoCredencialGCPEmAndamento = true;
+      const botao = document.getElementById("gcp-credential-delete");
+      if (botao) botao.disabled = true;
+      try {
+        await apiFetch("/credenciais/gcp", { method: "DELETE" });
+        document.getElementById("gcp-credential-form-container").innerHTML = "";
+        await carregarCredenciaisGCP();
+        setStatus("Credencial GCP excluída com sucesso.", "success");
+      } catch (e) {
+        setStatus("Erro: " + e.message, "error");
+      } finally {
+        exclusaoCredencialGCPEmAndamento = false;
+        if (botao && document.body.contains(botao)) botao.disabled = false;
+      }
+    }
+
     function exibirFormularioAlterarSenha() {
       const container = document.getElementById("alterar-senha-container");
       container.innerHTML = `
@@ -1075,8 +1211,6 @@
     async function solicitarPixPrompt(plano) { try { const pix = await apiFetch("/pix"); const dadosPlano = pix.planos[plano]; if (!dadosPlano) throw new Error("Plano Pix invalido"); const mensagem = "Pix para " + pix.recebedor + "\nChave: " + pix.chave + "\nCidade: " + pix.cidade + "\nValor: R$ " + dadosPlano.valor + "\n\nDepois de pagar, cole aqui o identificador ou resumo do comprovante:"; const comprovante = prompt(mensagem); if (comprovante === null) return; const resp = await apiFetch("/pix/solicitacao", { method: "POST", json: { plano, comprovante } }); setStatus("Solicitação Pix #" + resp.id + " enviada para aprovação manual", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
     async function salvarCredencialAzurePrompt() { const connection_string = prompt("Azure connection string"); if (!connection_string) return; try { await apiFetch("/credenciais/azure", { method: "POST", json: { connection_string } }); setStatus("Credencial Azure salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
-
-    async function salvarCredencialGCPPrompt() { const service_account_json = prompt("GCP service account JSON"); if (!service_account_json) return; try { await apiFetch("/credenciais/gcp", { method: "POST", json: { service_account_json } }); setStatus("Credencial GCP salva", "success"); exibirConfiguracoes(); } catch (e) { setStatus("Erro: " + e.message, "error"); } }
 
     function formatDate(str) {
       if (!str || str === '—') return '—';

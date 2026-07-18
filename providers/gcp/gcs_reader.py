@@ -39,16 +39,16 @@ class GCSReader(CloudProvider):
 
             self.client = storage.Client(project=self.project_id)
             return True
-        except Exception as e:
-            print(f"Erro ao autenticar no GCP: {e}")
+        except Exception:
+            print("Erro ao autenticar no GCP")
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         try:
             for bucket in self.client.list_buckets():
                 yield {"name": bucket.name, "location": bucket.location, "created": bucket.time_created.isoformat() if bucket.time_created else None, "type": "bucket"}
-        except GoogleAPIError as e:
-            print(f"Erro ao listar buckets GCS: {e}")
+        except GoogleAPIError:
+            print("Erro ao listar buckets GCS")
             raise
 
     def read(self, resource_path: str, format: str = "json", **options) -> Iterator[Dict[str, Any]]:
@@ -77,8 +77,8 @@ class GCSReader(CloudProvider):
                     record["_size"] = blob.size
                     yield record
                     count += 1
-        except GoogleAPIError as e:
-            print(f"Erro ao ler GCS: {e}")
+        except GoogleAPIError:
+            print("Erro ao ler GCS")
             raise
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
@@ -92,5 +92,5 @@ class GCSReader(CloudProvider):
             if not blob:
                 return {"error": "Objeto não encontrado"}
             return {"bucket": bucket_name, "name": blob.name, "size": blob.size, "content_type": blob.content_type or "unknown", "time_created": blob.time_created.isoformat() if blob.time_created else None, "updated": blob.updated.isoformat() if blob.updated else None, "etag": blob.etag}
-        except GoogleAPIError as e:
-            return {"error": str(e)}
+        except GoogleAPIError:
+            return {"error": "Falha ao obter metadados GCS"}

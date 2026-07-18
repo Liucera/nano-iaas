@@ -1,5 +1,8 @@
 import json
 
+import pytest
+from google.api_core.exceptions import GoogleAPIError
+
 from providers.gcp.gcs_reader import GCSReader
 
 
@@ -31,3 +34,39 @@ def test_authenticate_uses_service_account_json(monkeypatch):
     assert FakeCredentials.calls == [info]
     assert FakeStorageClient.calls == [{"project": "nano-dev", "credentials": {"credentials": "svc@example.com"}}]
     assert reader.project_id == "nano-dev"
+
+
+@pytest.mark.parametrize("operation", ["list", "read", "metadata"])
+def test_google_errors_never_log_or_return_sensitive_exception(operation, capsys):
+    sensitive = "fictitious-private-material service-account@example.invalid"
+    error = GoogleAPIError(sensitive)
+
+    class FailingBucket:
+        def get_blob(self, _name):
+            raise error
+
+    class FailingClient:
+        def list_buckets(self):
+            raise error
+
+        def bucket(self, _name):
+            return FailingBucket()
+
+        def list_blobs(self, *_args, **_kwargs):
+            raise error
+
+    reader = GCSReader()
+    reader.client = FailingClient()
+
+    if operation == "list":
+        with pytest.raises(GoogleAPIError):
+            list(reader.list_resources())
+    elif operation == "read":
+        with pytest.raises(GoogleAPIError):
+            list(reader.read("gs://fictitious-bucket"))
+    else:
+        assert reader.get_metadata("gs://fictitious-bucket/object") == {
+            "error": "Falha ao obter metadados GCS"
+        }
+
+    assert sensitive not in capsys.readouterr().out

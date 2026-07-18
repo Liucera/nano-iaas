@@ -634,6 +634,167 @@ def excluir_credencial_aws_usuario(user_id: int, usuario_email: str) -> bool:
     finally:
         conn.close()
 
+
+def mascarar_client_email_gcp(valor: str) -> str:
+    local, separador, dominio = valor.strip().partition("@")
+    if not separador or not local or not dominio:
+        return "***"
+    partes_dominio = dominio.split(".")
+    primeiro_rotulo = partes_dominio[0]
+    local_mascarado = f"{local[:2]}***" if len(local) > 1 else f"{local[:1]}***"
+    dominio_mascarado = (
+        f"{primeiro_rotulo[:2]}***" if len(primeiro_rotulo) > 1 else f"{primeiro_rotulo[:1]}***"
+    )
+    if len(partes_dominio) > 1:
+        dominio_mascarado += "." + ".".join(partes_dominio[1:])
+    return f"{local_mascarado}@{dominio_mascarado}"
+
+
+def _info_service_account_gcp(credencial: dict) -> dict:
+    service_account_json = credencial.get("service_account_json")
+    if not isinstance(service_account_json, str):
+        raise ValueError("Credencial GCP armazenada em formato inválido")
+    info = json.loads(service_account_json)
+    if not isinstance(info, dict):
+        raise ValueError("Credencial GCP armazenada em formato inválido")
+    return info
+
+
+def _metadata_credencial_gcp(linha: dict) -> dict:
+    credencial = json.loads(descriptografar(linha["credencial_cifrada"]))
+    info = _info_service_account_gcp(credencial)
+    return {
+        "id": linha["id"],
+        "provider": "gcp",
+        "project_id": info["project_id"],
+        "client_email_masked": mascarar_client_email_gcp(info["client_email"]),
+        "criado_em": linha["criado_em"],
+    }
+
+
+def listar_credenciais_gcp_usuario(user_id: int) -> list[dict]:
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, credencial_cifrada, criado_em
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'gcp'
+                ORDER BY id
+                """,
+                (user_id,),
+            )
+            linhas = cur.fetchall()
+        return [_metadata_credencial_gcp(linha) for linha in linhas]
+    finally:
+        conn.close()
+
+
+def salvar_credencial_gcp_usuario(
+    user_id: int,
+    usuario_email: str,
+    credencial_json: dict,
+    substituir: bool,
+) -> tuple[str, dict | None]:
+    cifrado = criptografar(json.dumps(credencial_json, ensure_ascii=False))
+    conn = conectar_db()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'gcp'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            existente = cur.fetchone()
+            if existente and not substituir:
+                conn.rollback()
+                return "exists", None
+            if not existente and substituir:
+                conn.rollback()
+                return "missing", None
+
+            if substituir:
+                cur.execute(
+                    """
+                    UPDATE cloud_credentials
+                    SET credencial_cifrada = %s, criado_em = now()
+                    WHERE user_id = %s AND provider = 'gcp'
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (cifrado, user_id),
+                )
+                acao = "CREDENCIAL_SUBSTITUIDA"
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO cloud_credentials (user_id, provider, credencial_cifrada)
+                    VALUES (%s, 'gcp', %s)
+                    RETURNING id, credencial_cifrada, criado_em
+                    """,
+                    (user_id, cifrado),
+                )
+                acao = "CREDENCIAL_CADASTRADA"
+
+            linha = cur.fetchone()
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, %s, 'gcp')
+                """,
+                (usuario_email, acao),
+            )
+        conn.commit()
+        return "ok", _metadata_credencial_gcp(linha)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def excluir_credencial_gcp_usuario(user_id: int, usuario_email: str) -> bool:
+    conn = conectar_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'gcp'
+                FOR UPDATE
+                """,
+                (user_id,),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return False
+            cur.execute(
+                """
+                DELETE FROM cloud_credentials
+                WHERE user_id = %s AND provider = 'gcp'
+                """,
+                (user_id,),
+            )
+            cur.execute(
+                """
+                INSERT INTO audit_log (usuario, acao, provider)
+                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'gcp')
+                """,
+                (usuario_email,),
+            )
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 # ── Auditoria ─────────────────────────────────────────────────
 def registrar_acesso(usuario: str, acao: str, provider: str, recurso: str, detalhes: str = ""):
     conn = conectar_db()
@@ -771,7 +932,14 @@ class CredencialAWSResponse(BaseModel):
     criado_em: datetime
 
 class CredencialGCP(BaseModel):
-    service_account_json: str
+    service_account_json: object | None = None
+
+class CredencialGCPResponse(BaseModel):
+    id: int
+    provider: str
+    project_id: str
+    client_email_masked: str
+    criado_em: datetime
 
 class CredencialAzure(BaseModel):
     connection_string: str
@@ -1253,6 +1421,27 @@ def validar_credencial_aws(dados: CredencialAWS) -> dict:
         "secret_access_key": secret_access_key,
     }
 
+
+def validar_credencial_gcp(dados: CredencialGCP) -> dict:
+    service_account_json = dados.service_account_json
+    if not isinstance(service_account_json, str) or not service_account_json.strip():
+        raise HTTPException(status_code=400, detail="JSON da credencial GCP inválido")
+    if len(service_account_json) > 65536:
+        raise HTTPException(status_code=400, detail="JSON da credencial GCP inválido")
+    try:
+        info = json.loads(service_account_json)
+    except (TypeError, json.JSONDecodeError):
+        raise HTTPException(status_code=400, detail="JSON da credencial GCP inválido") from None
+    if not isinstance(info, dict):
+        raise HTTPException(status_code=400, detail="JSON da credencial GCP inválido")
+    if info.get("type") != "service_account":
+        raise HTTPException(status_code=400, detail="Credencial GCP deve ser do tipo service_account")
+    for campo in ("project_id", "client_email", "private_key"):
+        if not isinstance(info.get(campo), str) or not info[campo].strip():
+            raise HTTPException(status_code=400, detail=f"Credencial GCP sem o campo obrigatório {campo}")
+    service_account_normalizada = json.dumps(info, ensure_ascii=False, separators=(",", ":"))
+    return {"service_account_json": service_account_normalizada}
+
 @app.get("/credenciais/aws", response_model=list[CredencialAWSResponse])
 def listar_credenciais_aws(usuario=Depends(usuario_atual)):
     return listar_credenciais_aws_usuario(usuario["id"])
@@ -1290,11 +1479,45 @@ def excluir_credencial_aws(usuario=Depends(usuario_atual)):
         raise HTTPException(status_code=404, detail="Credencial AWS não encontrada")
     return {"ok": True, "message": "Credencial AWS excluída com sucesso."}
 
-@app.post("/credenciais/gcp")
+@app.get("/credenciais/gcp", response_model=list[CredencialGCPResponse])
+def listar_credenciais_gcp(usuario=Depends(usuario_atual)):
+    return listar_credenciais_gcp_usuario(usuario["id"])
+
+
+@app.post("/credenciais/gcp", response_model=CredencialGCPResponse)
 def cadastrar_credencial_gcp(dados: CredencialGCP, usuario=Depends(usuario_atual)):
-    salvar_credencial(usuario["id"], "gcp", dados.dict())
-    registrar_acesso(usuario["email"], "CREDENCIAL", "gcp", "-", "credencial cadastrada")
-    return {"status": "ok", "provider": "gcp"}
+    status_salvamento, credencial = salvar_credencial_gcp_usuario(
+        usuario["id"],
+        usuario["email"],
+        validar_credencial_gcp(dados),
+        substituir=False,
+    )
+    if status_salvamento == "exists":
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma credencial GCP cadastrada; use a opção substituir",
+        )
+    return credencial
+
+
+@app.put("/credenciais/gcp", response_model=CredencialGCPResponse)
+def substituir_credencial_gcp(dados: CredencialGCP, usuario=Depends(usuario_atual)):
+    status_salvamento, credencial = salvar_credencial_gcp_usuario(
+        usuario["id"],
+        usuario["email"],
+        validar_credencial_gcp(dados),
+        substituir=True,
+    )
+    if status_salvamento == "missing":
+        raise HTTPException(status_code=404, detail="Credencial GCP não encontrada")
+    return credencial
+
+
+@app.delete("/credenciais/gcp")
+def excluir_credencial_gcp(usuario=Depends(usuario_atual)):
+    if not excluir_credencial_gcp_usuario(usuario["id"], usuario["email"]):
+        raise HTTPException(status_code=404, detail="Credencial GCP não encontrada")
+    return {"ok": True, "message": "Credencial GCP excluída com sucesso."}
 
 @app.post("/credenciais/azure")
 def cadastrar_credencial_azure(dados: CredencialAzure, usuario=Depends(usuario_atual)):
