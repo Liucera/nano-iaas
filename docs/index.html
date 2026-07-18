@@ -1403,6 +1403,11 @@
           ) {
             throw new Error("Opção de plano inválida recebida do servidor.");
           }
+        });
+        const opcoesDestino = configuracao.opcoes.filter(
+          (opcao) => opcao.plano !== configuracao.plano_atual
+        );
+        opcoesDestino.forEach((opcao) => {
           const item = document.createElement("option");
           item.value = opcao.plano;
           item.textContent = opcao.valor > 0
@@ -1411,9 +1416,6 @@
           item.dataset.modoAtivacao = opcao.modo_ativacao;
           select.appendChild(item);
         });
-        if (configuracao.opcoes.some((opcao) => opcao.plano === configuracao.plano_atual)) {
-          select.value = configuracao.plano_atual;
-        }
 
         const atualizarDetalhes = () => {
           const selecionado = select.options[select.selectedIndex];
@@ -1478,6 +1480,11 @@
       const botao = document.getElementById("plan-update-submit");
       if (!plano) {
         mensagem.textContent = "Selecione um plano permitido.";
+        mensagem.className = "status error";
+        return;
+      }
+      if (plano === form.dataset.planoAtual) {
+        mensagem.textContent = "Selecione um plano diferente do plano atual.";
         mensagem.className = "status error";
         return;
       }
