@@ -2073,6 +2073,7 @@ def read_resource(provider: str, bucket: str, usuario=Depends(usuario_atual)):
 
 @app.get("/audit")
 def ver_logs(usuario=Depends(usuario_atual)):
+    exigir_admin(usuario)
     try:
         logs = buscar_logs_auditoria(limite=50)
         return {"logs": logs}

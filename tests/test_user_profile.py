@@ -398,7 +398,7 @@ def frontend_parser(html):
 def cadastro_source(html):
     return html[
         html.index("async function fazerCadastro()"):
-        html.index("async function exibirConfiguracoes()")
+        html.index("async function exibirConfiguracoes(")
     ]
 
 

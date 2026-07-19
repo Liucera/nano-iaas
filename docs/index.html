@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    [hidden] { display: none !important; }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -527,7 +529,7 @@
         </div>
 
         <button class="sidebar-link active" onclick="carregarTodos()">Dashboard</button>
-        <button class="sidebar-link" onclick="verLogs()">Auditoria</button>
+        <button id="sidebar-audit-link" class="sidebar-link" onclick="verLogs()" hidden>Auditoria</button>
         <a class="sidebar-link" href="landing.html">Landing Page</a>
 
         <div class="sidebar-section-label">Conta</div>
@@ -581,7 +583,7 @@
           <button class="chip chip-azure" onclick="carregar('azure')"><img src="azure.png" alt=""> Azure</button>
           <button class="chip chip-aws" onclick="carregar('aws')"><img src="aws.png" alt=""> AWS</button>
           <button class="chip chip-all" onclick="carregarTodos()"><img src="Todos.png" alt=""> Todos</button>
-          <button class="chip chip-audit" onclick="verLogs()"><img src="Auditoria.png" alt=""> Auditoria</button>
+          <button id="toolbar-audit-link" class="chip chip-audit" onclick="verLogs()" hidden><img src="Auditoria.png" alt=""> Auditoria</button>
           <div class="search-box">
             <span class="ico-search">⌕</span>
             <input type="text" id="input-busca" placeholder="Buscar recurso..." oninput="filtrarRecursos(this.value)" />
@@ -628,10 +630,35 @@
     let exclusaoCredencialAzureEmAndamento = false;
     let envioPlanoEmAndamento = false;
 
+    function aplicarVisibilidadeAuditoria(isAdmin = false) {
+      const visivel = isAdmin === true;
+      ["sidebar-audit-link", "toolbar-audit-link"].forEach((id) => {
+        const controle = document.getElementById(id);
+        if (controle) controle.hidden = !visivel;
+      });
+    }
+
+    async function atualizarVisibilidadeAuditoria() {
+      const tokenConsultado = token;
+      aplicarVisibilidadeAuditoria(false);
+      if (!tokenConsultado) return null;
+
+      try {
+        const me = await apiFetch("/me");
+        if (tokenConsultado !== token || !me || typeof me !== "object") return null;
+        aplicarVisibilidadeAuditoria(me.is_admin === true);
+        return me;
+      } catch (e) {
+        if (tokenConsultado === token) aplicarVisibilidadeAuditoria(false);
+        return null;
+      }
+    }
+
     if (token) {
-      document.addEventListener('DOMContentLoaded', () => {
+      document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('tela-dashboard').style.display = 'block';
+        await atualizarVisibilidadeAuditoria();
         carregarTodos();
       });
     }
@@ -807,7 +834,10 @@
         sessionStorage.setItem("nano_iaas_token", token);
         document.getElementById("tela-login").style.display = "none";
         document.getElementById("tela-dashboard").style.display = "block";
-        exibirConfiguracoes();
+        const me = await atualizarVisibilidadeAuditoria();
+        if (me !== null) {
+          await exibirConfiguracoes(me);
+        }
       } catch (e) {
         const mensagem = e.message || "";
         if (mensagem.includes("Versao") || mensagem.includes("versão")) {
@@ -823,10 +853,11 @@
 
     document.getElementById("auth-form").addEventListener("submit", enviarFormularioAuth);
 
-    async function exibirConfiguracoes() {
+    async function exibirConfiguracoes(meValidado = null) {
       setStatus("Carregando configurações...", "loading");
       try {
-        const me = await apiFetch("/me");
+        const me = meValidado !== null ? meValidado : await apiFetch("/me");
+        if (!me) throw new Error("Resposta invalida ao consultar a conta.");
         const providers = (me.providers_configurados || []).join(", ") || "nenhum";
         const nomeExibicao = me.full_name || me.email;
         document.getElementById("painel-recursos").innerHTML = `
@@ -1556,6 +1587,7 @@
         sessionStorage.setItem('nano_iaas_token', token);
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('tela-dashboard').style.display = 'block';
+        await atualizarVisibilidadeAuditoria();
         carregarTodos();
       } catch (e) {
         if (e.status === 429) {
@@ -1572,6 +1604,7 @@
     }
 
     function fazerLogout() {
+      aplicarVisibilidadeAuditoria(false);
       token = null;
       sessionStorage.removeItem('nano_iaas_token');
       document.getElementById('tela-login').style.display = 'flex';
