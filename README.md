@@ -21,18 +21,19 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-### Estado oficial em 18/07/2026
+### Estado oficial em 21/07/2026
 
 - Macroetapas 1, 2 e 3: concluídas;
-- Macroetapa 4 — Telas essenciais: em andamento;
+- Macroetapa 4 — Telas essenciais: em andamento, com cinco dos seis blocos concluídos (83,33%);
 - Cadastro `[x]`;
 - Credenciais AWS `[x]`;
 - Credenciais GCP `[x]`;
 - Credenciais Azure `[x]`;
-- Atualização do próprio plano `[~]`, limitada às regras comerciais e aos mecanismos de autorização já existentes;
+- Atualização do próprio plano `[x]`, concluída dentro das regras comerciais e dos mecanismos de autorização já existentes;
+- Revisão geral das mensagens de erro e sucesso `[ ]`, próximo bloco da Macroetapa 4;
 - validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
 
-A fonte vigente deste bloco é a `main` no commit `3688d5deb0444e319d37f3694ec7002bf8034e16`. A revisão de backend atualmente implantada é a task definition ECS `nano-iaas-backend-dev:10`.
+A fonte vigente é a `main` no commit `d6de052e361031205fbc515f9741606ea38bcac5`. O frontend publicado corresponde a essa revisão. O backend em produção permanece na task definition ECS `nano-iaas-backend-dev:11`, com a imagem `git-5391c5a`; a publicação da revisão posterior do backend continua bloqueada pelo critério de zero vulnerabilidades críticas.
 
 ### Planos e fluxo comercial vigente
 
@@ -42,6 +43,16 @@ A fonte vigente deste bloco é a `main` no commit `3688d5deb0444e319d37f3694ec70
 - Popular e Premium exigem solicitação PIX com valor definido pelo servidor e aprovação administrativa manual;
 - criar uma solicitação não ativa o plano pago; a alteração ocorre somente após aprovação válida da solicitação pendente;
 - este bloco não adiciona gateway, nova cobrança, novo plano, novo preço ou ativação paga automática.
+
+### Validação formal da atualização do próprio plano
+
+Em 21/07/2026, o fluxo implantado foi validado de forma autenticada e somente leitura com uma conta comum, sem privilégios administrativos:
+
+- `GET /me` e `GET /me/plano/opcoes` responderam HTTP 200;
+- a resposta identificou corretamente o usuário comum e retornou os três planos permitidos, com valores numéricos e modos de ativação;
+- o plano atual foi identificado na resposta e permanece filtrado pelo frontend ao apresentar alternativas;
+- nenhum token, senha, comprovante, credencial cloud ou outro segredo foi exposto;
+- nenhum plano, solicitação PIX ou dado persistente foi alterado durante a validação.
 
 ### Repositórios oficiais e responsabilidades
 
