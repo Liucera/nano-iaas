@@ -114,7 +114,7 @@ def test_cadastro_legado_com_aceite_falso_rejeitado(cadastro_isolado):
 
 
 def test_cadastro_legado_com_versao_diferente_rejeitado(cadastro_isolado):
-    assert_http_error(cadastro_legado_request(versao_termos="outra"), "Versao legada")
+    assert_http_error(cadastro_legado_request(versao_termos="outra"), "Versão legada")
 
 
 @pytest.mark.parametrize(
@@ -138,7 +138,7 @@ def test_payload_hibrido_incompleto_rejeitado(cadastro_isolado, changes):
 def test_contrato_novo_nao_aceita_campo_legado(cadastro_isolado):
     assert_http_error(
         cadastro_request(versao_termos="beta-2026-07"),
-        "Nao combine",
+        "Não combine",
     )
 
 
@@ -177,16 +177,16 @@ def test_privacidade_nao_aceita(cadastro_isolado):
 
 
 def test_versao_termos_invalida(cadastro_isolado):
-    assert_http_error(cadastro_request(terms_version="antiga"), "Termos de Uso invalida")
+    assert_http_error(cadastro_request(terms_version="antiga"), "Termos de Uso inválida")
 
 
 def test_versao_privacidade_invalida(cadastro_isolado):
-    assert_http_error(cadastro_request(privacy_version="antiga"), "Privacidade invalida")
+    assert_http_error(cadastro_request(privacy_version="antiga"), "Privacidade inválida")
 
 
 def test_email_duplicado(cadastro_isolado, monkeypatch):
     monkeypatch.setattr(backend, "buscar_usuario_por_email", lambda email: {"id": 1})
-    assert_http_error(cadastro_request(), "Ja existe", 409)
+    assert_http_error(cadastro_request(), "Já existe", 409)
 
 
 class CaptureCursor:
@@ -342,7 +342,7 @@ def test_openapi_contem_novos_campos_e_schema_explicito_de_me():
     for field in ("full_name", "aceite_privacidade", "terms_version", "privacy_version"):
         assert "contrato novo" in cadastro_schema["properties"][field]["description"]
     legado = cadastro_schema["properties"]["versao_termos"]
-    assert "Temporario" in legado["description"]
+    assert "Temporário" in legado["description"]
     assert "legado" in legado["description"]
     me_response = schema["paths"]["/me"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
     assert me_response["$ref"].endswith("/MeResponse")
@@ -607,7 +607,7 @@ def sem_credencial(provider):
     nomes = {"aws": "AWS", "gcp": "GCP", "azure": "Azure"}
     return provider_response(
         400,
-        {"detail": f"Nenhuma credencial {nomes[provider]} cadastrada para este usuario"},
+        {"detail": f"Nenhuma credencial {nomes[provider]} cadastrada para este usuário"},
     )
 
 
