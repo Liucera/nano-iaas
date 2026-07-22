@@ -30,10 +30,10 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 - Credenciais GCP `[x]`;
 - Credenciais Azure `[x]`;
 - Atualização do próprio plano `[x]`, concluída dentro das regras comerciais e dos mecanismos de autorização já existentes;
-- Revisão geral das mensagens de erro e sucesso `[ ]`, próximo bloco da Macroetapa 4;
+- Revisão geral das mensagens de erro e sucesso `[~]`, implementada e validada localmente, com implantação e validação em produção pendentes;
 - validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
 
-A fonte vigente é a `main` no commit `d6de052e361031205fbc515f9741606ea38bcac5`. O frontend publicado corresponde a essa revisão. O backend em produção permanece na task definition ECS `nano-iaas-backend-dev:11`, com a imagem `git-5391c5a`; a publicação da revisão posterior do backend continua bloqueada pelo critério de zero vulnerabilidades críticas.
+A base auditada para o início deste bloco é a `main` no commit `7accfbb6318ad018e41393732b65c4b7abf88f68`. O frontend publicado corresponde a essa base. O backend em produção permanece na task definition ECS `nano-iaas-backend-dev:11`, com a imagem `git-5391c5a`; a implantação da revisão atual do backend continua bloqueada pelo critério de zero vulnerabilidades críticas.
 
 ### Planos e fluxo comercial vigente
 
@@ -53,6 +53,12 @@ Em 21/07/2026, o fluxo implantado foi validado de forma autenticada e somente le
 - o plano atual foi identificado na resposta e permanece filtrado pelo frontend ao apresentar alternativas;
 - nenhum token, senha, comprovante, credencial cloud ou outro segredo foi exposto;
 - nenhum plano, solicitação PIX ou dado persistente foi alterado durante a validação.
+
+### Revisão geral das mensagens
+
+A implementação do Bloco 4.6 padroniza mensagens públicas e fallbacks para respostas HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502, preserva `Retry-After`, trata falhas de conexão em português e impede a exposição literal de erros operacionais desconhecidos. As regiões de status passaram a anunciar erros de forma acessível e a direcionar o foco para o estado principal quando necessário. O frontend mantém compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção.
+
+A validação local aprovou 253 testes, incluindo testes comportamentais Node sem rede real. A conclusão formal permanece pendente de implantação e validação em produção. A parte backend não será implantada enquanto a imagem candidata possuir vulnerabilidades críticas.
 
 ### Repositórios oficiais e responsabilidades
 

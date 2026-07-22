@@ -38,7 +38,7 @@ from providers.aws.s3_reader import S3Reader
 SECRET_KEY = os.environ.get("NANO_IAAS_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError(
-        "NANO_IAAS_SECRET_KEY nao configurada. Defina essa variavel de ambiente "
+        "NANO_IAAS_SECRET_KEY não configurada. Defina essa variável de ambiente "
         "antes de iniciar o servidor (nunca use uma chave fixa em produção)."
     )
 
@@ -1186,7 +1186,7 @@ class Token(BaseModel):
 class CadastroRequest(BaseModel):
     full_name: str | None = Field(
         default=None,
-        description="Campo oficial do contrato novo. Obrigatorio fora da compatibilidade legada temporaria.",
+        description="Campo oficial do contrato novo. Obrigatório fora da compatibilidade legada temporária.",
     )
     email: EmailStr
     senha: str
@@ -1194,19 +1194,19 @@ class CadastroRequest(BaseModel):
     aceite_termos: bool
     aceite_privacidade: bool | None = Field(
         default=None,
-        description="Campo oficial do contrato novo. Obrigatorio fora da compatibilidade legada temporaria.",
+        description="Campo oficial do contrato novo. Obrigatório fora da compatibilidade legada temporária.",
     )
     terms_version: str | None = Field(
         default=None,
-        description="Versao oficial dos Termos no contrato novo.",
+        description="Versão oficial dos Termos no contrato novo.",
     )
     privacy_version: str | None = Field(
         default=None,
-        description="Versao oficial da Privacidade no contrato novo.",
+        description="Versão oficial da Privacidade no contrato novo.",
     )
     versao_termos: str | None = Field(
         default=None,
-        description="Temporario: versao enviada apenas pelo contrato legado de cadastro.",
+        description="Temporário: versão enviada apenas pelo contrato legado de cadastro.",
     )
 
     @field_validator("email", mode="before")
@@ -1343,7 +1343,7 @@ def _limite_por_escopo(scope: str) -> int:
         return LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS
     if scope == "account_ip":
         return LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS
-    raise ValueError("Escopo de rate limit invalido")
+    raise ValueError("Escopo de rate limit inválido")
 
 def verificar_bloqueios_login(chaves: dict[str, str]) -> int | None:
     conn = conectar_db()
@@ -1539,7 +1539,7 @@ def executar_protecao_login(operacao, *args):
     except Exception:
         raise HTTPException(
             status_code=503,
-            detail="Servico de autenticacao temporariamente indisponivel",
+            detail="Serviço de autenticação temporariamente indisponível",
         ) from None
 
 def erro_muitas_tentativas(retry_after: int) -> HTTPException:
@@ -1553,8 +1553,8 @@ def obter_config_pix():
     return {
         "chave": os.environ.get("NANO_IAAS_PIX_KEY", "arlindo.barroso100@yahoo.com"),
         "recebedor": os.environ.get("NANO_IAAS_PIX_RECEIVER", "Arlindo da Silva Barroso"),
-        "cidade": os.environ.get("NANO_IAAS_PIX_CITY", "Pacatuba, Ceara"),
-        "instrucao": "Envie o Pix e informe o identificador/comprovante para aprovacao manual.",
+        "cidade": os.environ.get("NANO_IAAS_PIX_CITY", "Pacatuba, Ceará"),
+        "instrucao": "Envie o PIX e informe o identificador/comprovante para aprovação manual.",
         "planos": {
             "popular": {"valor": PLANOS_VALORES["popular"], "descricao": "Plano Popular"},
             "premium": {"valor": PLANOS_VALORES["premium"], "descricao": "Plano Premium"},
@@ -1599,13 +1599,13 @@ def cadastro(dados: CadastroRequest):
     full_name = dados.full_name.strip() if contrato_novo else None
     email = str(dados.email).strip().lower()
     if contrato_novo and dados.versao_termos is not None:
-        raise HTTPException(status_code=400, detail="Nao combine campos dos contratos novo e legado")
+        raise HTTPException(status_code=400, detail="Não combine campos dos contratos novo e legado")
     if contrato_novo and len(full_name) < 3:
         raise HTTPException(status_code=400, detail="O nome completo deve ter pelo menos 3 caracteres")
     if contrato_novo and len(full_name) > 150:
-        raise HTTPException(status_code=400, detail="O nome completo deve ter no maximo 150 caracteres")
+        raise HTTPException(status_code=400, detail="O nome completo deve ter no máximo 150 caracteres")
     if dados.plano not in PLANOS_VALIDOS:
-        raise HTTPException(status_code=400, detail="Plano invalido")
+        raise HTTPException(status_code=400, detail="Plano inválido")
     if len(dados.senha) < 8:
         raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 8 caracteres")
     if not dados.aceite_termos:
@@ -1613,13 +1613,13 @@ def cadastro(dados: CadastroRequest):
     if contrato_novo and not dados.aceite_privacidade:
         raise HTTPException(status_code=400, detail="Aceite a Política de Privacidade para criar a conta")
     if contrato_novo and dados.terms_version != VERSAO_TERMOS_ATUAL:
-        raise HTTPException(status_code=400, detail="Versao dos Termos de Uso invalida")
+        raise HTTPException(status_code=400, detail="Versão dos Termos de Uso inválida")
     if contrato_novo and dados.privacy_version != VERSAO_PRIVACIDADE_ATUAL:
-        raise HTTPException(status_code=400, detail="Versao da Política de Privacidade invalida")
+        raise HTTPException(status_code=400, detail="Versão da Política de Privacidade inválida")
     if contrato_legado and dados.versao_termos != VERSAO_LEGADA_CADASTRO:
-        raise HTTPException(status_code=400, detail="Versao legada dos Termos de Uso invalida")
+        raise HTTPException(status_code=400, detail="Versão legada dos Termos de Uso inválida")
     if buscar_usuario_por_email(email):
-        raise HTTPException(status_code=409, detail="Ja existe uma conta com esse e-mail")
+        raise HTTPException(status_code=409, detail="Já existe uma conta com esse e-mail")
 
     senha_hash = gerar_hash_senha(dados.senha)
     novo = criar_usuario(
@@ -1744,7 +1744,7 @@ def admin_aprovar_pix(solicitacao_id: int, usuario=Depends(usuario_atual)):
     except Exception:
         raise HTTPException(status_code=500, detail="Não foi possível aprovar a solicitação") from None
     if not resultado:
-        raise HTTPException(status_code=404, detail="Solicitacao Pix pendente nao encontrada")
+        raise HTTPException(status_code=404, detail="Solicitação PIX pendente não encontrada")
     if resultado == "invalid":
         raise HTTPException(status_code=409, detail="Solicitação de plano inconsistente")
     return resultado
@@ -2004,7 +2004,7 @@ def obter_provider_autenticado(provider: str, usuario: dict):
         elif usuario["is_admin"]:
             ok = p.authenticate({})
         else:
-            raise ValueError("Nenhuma credencial GCP cadastrada para este usuario")
+            raise ValueError("Nenhuma credencial GCP cadastrada para este usuário")
         if not ok:
             raise ValueError("Falha ao autenticar no GCP com as credenciais fornecidas")
         return p
@@ -2018,7 +2018,7 @@ def obter_provider_autenticado(provider: str, usuario: dict):
             # string do sistema (variavel de ambiente AZURE_STORAGE_CONNECTION_STRING)
             ok = p.authenticate({})
         else:
-            raise ValueError("Nenhuma credencial Azure cadastrada para este usuario")
+            raise ValueError("Nenhuma credencial Azure cadastrada para este usuário")
         if not ok:
             raise ValueError("Falha ao autenticar no Azure com as credenciais fornecidas")
         return p
@@ -2030,17 +2030,34 @@ def obter_provider_autenticado(provider: str, usuario: dict):
         elif usuario["is_admin"]:
             p.authenticate({'mode': 'env'})
         else:
-            raise ValueError("Nenhuma credencial AWS cadastrada para este usuario")
+            raise ValueError("Nenhuma credencial AWS cadastrada para este usuário")
         return p
 
     raise ValueError("Provider não encontrado")
 
+ERROS_OPERACIONAIS_PUBLICOS = frozenset({
+    "Credencial GCP armazenada em formato inválido",
+    "Nenhuma credencial GCP cadastrada para este usuário",
+    "Nenhuma credencial Azure cadastrada para este usuário",
+    "Nenhuma credencial AWS cadastrada para este usuário",
+    "Falha ao autenticar no GCP com as credenciais fornecidas",
+    "Falha ao autenticar no Azure com as credenciais fornecidas",
+    "Provider não encontrado",
+})
+
+
 def responder_erro_operacional(erro: Exception):
     if isinstance(erro, ValueError):
-        raise HTTPException(status_code=400, detail=str(erro))
+        detalhe = str(erro)
+        if detalhe in ERROS_OPERACIONAIS_PUBLICOS:
+            raise HTTPException(status_code=400, detail=detalhe)
+        raise HTTPException(
+            status_code=400,
+            detail="Não foi possível processar a solicitação do provider",
+        )
     if isinstance(erro, (ClientError, AzureError, GoogleAPIError)):
         raise HTTPException(status_code=502, detail="Falha ao consultar o provider de nuvem")
-    raise HTTPException(status_code=500, detail="Erro interno ao processar a solicitacao")
+    raise HTTPException(status_code=500, detail="Erro interno ao processar a solicitação")
 
 @app.get("/list/{provider}")
 def list_resources(provider: str, usuario=Depends(usuario_atual)):

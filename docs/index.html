@@ -590,7 +590,7 @@
           </div>
         </div>
 
-        <div class="status" id="status">Selecione um provider para começar.</div>
+        <div class="status" id="status" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Selecione um provider para começar.</div>
 
         <div class="table-wrap" id="painel-recursos">
           <table>
@@ -667,6 +667,13 @@
       const el = document.getElementById('status');
       el.textContent = msg;
       el.className = 'status ' + (tipo || '');
+      const erro = tipo === 'error';
+      el.setAttribute('role', erro ? 'alert' : 'status');
+      el.setAttribute('aria-live', erro ? 'assertive' : 'polite');
+      el.setAttribute('aria-atomic', 'true');
+      if (erro && typeof el.focus === 'function') {
+        el.focus({ preventScroll: true });
+      }
     }
 
     async function apiFetch(path, options = {}) {
@@ -680,45 +687,124 @@
       const headers = { ...optionHeaders };
       if (token) headers.Authorization = "Bearer " + token;
       if (json) headers["Content-Type"] = "application/json";
-      const res = await fetch(API + path, {
-        ...fetchOptions,
-        headers,
-        body: json ? JSON.stringify(json) : body,
-      });
+
+      let res;
+      try {
+        res = await fetch(API + path, {
+          ...fetchOptions,
+          headers,
+          body: json ? JSON.stringify(json) : body,
+        });
+      } catch {
+        const falhaConexao = new Error("Não foi possível conectar à API.");
+        falhaConexao.status = 0;
+        throw falhaConexao;
+      }
+
       const data = await res.json().catch(() => ({}));
       const preservarSessao =
         preserveSessionOn401 && data.detail === "Senha atual incorreta";
       if (res.status === 401 && !preservarSessao) {
         sessaoExpirada();
-        throw new Error("Sessão expirada");
+        const falhaSessao = new Error("Sessão expirada");
+        falhaSessao.status = 401;
+        throw falhaSessao;
       }
-      if (!res.ok) throw new Error(data.detail || data.error || "Falha na requisição");
+      if (!res.ok) {
+        const mensagensHttp = {
+          400: "Não foi possível concluir a solicitação.",
+          403: "Você não tem permissão para realizar esta operação.",
+          404: "O recurso solicitado não foi encontrado.",
+          409: "A solicitação entra em conflito com o estado atual.",
+          422: "Revise os dados informados e tente novamente.",
+          429: "Muitas solicitações. Tente novamente mais tarde.",
+          500: "Não foi possível processar a solicitação.",
+          502: "Não foi possível consultar o serviço externo.",
+        };
+        const detalhe = typeof data.detail === "string" && data.detail.trim()
+          ? data.detail
+          : typeof data.error === "string" && data.error.trim()
+            ? data.error
+            : null;
+        const falha = new Error(
+          detalhe || mensagensHttp[res.status] || "Não foi possível concluir a solicitação."
+        );
+        falha.status = res.status;
+        falha.retryAfter =
+          res.headers && typeof res.headers.get === "function"
+            ? res.headers.get("Retry-After")
+            : null;
+        throw falha;
+      }
       return data;
     }
 
     const detalhesSemCredencial = {
-      aws: 'Nenhuma credencial AWS cadastrada para este usuario',
-      gcp: 'Nenhuma credencial GCP cadastrada para este usuario',
-      azure: 'Nenhuma credencial Azure cadastrada para este usuario',
+      aws: [
+        'Nenhuma credencial AWS cadastrada para este usuário',
+        'Nenhuma credencial AWS cadastrada para este usuario',
+      ],
+      gcp: [
+        'Nenhuma credencial GCP cadastrada para este usuário',
+        'Nenhuma credencial GCP cadastrada para este usuario',
+      ],
+      azure: [
+        'Nenhuma credencial Azure cadastrada para este usuário',
+        'Nenhuma credencial Azure cadastrada para este usuario',
+      ],
     };
 
     async function carregarProvider(provider) {
-      const resposta = await fetch(`${API}/list/${provider}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      let resposta;
+      try {
+        resposta = await fetch(`${API}/list/${provider}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch {
+        const falhaConexao = new Error('Não foi possível conectar à API.');
+        falhaConexao.status = 0;
+        throw falhaConexao;
+      }
       const data = await resposta.json().catch(() => ({}));
       const detalhe = data && typeof data === 'object' ? data.detail : undefined;
       const erro = data && typeof data === 'object' ? data.error : undefined;
 
       if (resposta.status === 401) {
         sessaoExpirada();
-        throw new Error('Sessão expirada');
+        const falhaSessao = new Error('Sessão expirada');
+        falhaSessao.status = 401;
+        throw falhaSessao;
       }
-      if (resposta.status === 400 && detalhe === detalhesSemCredencial[provider]) {
+      if (
+        resposta.status === 400 &&
+        detalhesSemCredencial[provider] &&
+        detalhesSemCredencial[provider].includes(detalhe)
+      ) {
         return { provider, resources: [] };
       }
       if (!resposta.ok) {
-        throw new Error(detalhe || erro || `Falha ao carregar ${provider.toUpperCase()}`);
+        const mensagensHttp = {
+          400: 'Não foi possível concluir a solicitação.',
+          403: 'Você não tem permissão para consultar este provider.',
+          404: 'O provider solicitado não foi encontrado.',
+          409: 'A solicitação entra em conflito com o estado atual.',
+          422: 'Revise os dados informados e tente novamente.',
+          429: 'Muitas solicitações. Tente novamente mais tarde.',
+          500: 'Não foi possível processar a solicitação.',
+          502: 'Não foi possível consultar o provider de nuvem.',
+        };
+        const detalheSeguro = typeof detalhe === 'string' && detalhe.trim() ? detalhe : null;
+        const erroSeguro = typeof erro === 'string' && erro.trim() ? erro : null;
+        const falha = new Error(
+          detalheSeguro || erroSeguro || mensagensHttp[resposta.status] ||
+          `Não foi possível carregar ${provider.toUpperCase()}.`
+        );
+        falha.status = resposta.status;
+        falha.retryAfter =
+          resposta.headers && typeof resposta.headers.get === 'function'
+            ? resposta.headers.get('Retry-After')
+            : null;
+        throw falha;
       }
       if (!data || !Array.isArray(data.resources)) {
         throw new Error(`Resposta inválida de ${provider.toUpperCase()}: resources deve ser uma lista`);
@@ -840,9 +926,9 @@
         }
       } catch (e) {
         const mensagem = e.message || "";
-        if (mensagem.includes("Versao") || mensagem.includes("versão")) {
+        if (mensagem.includes("Versão") || mensagem.includes("Versao") || mensagem.includes("versão")) {
           erro.textContent = "As versões legais foram atualizadas. Recarregue a página e tente novamente.";
-        } else if (mensagem.includes("Ja existe") || mensagem.includes("já existe")) {
+        } else if (mensagem.includes("Já existe") || mensagem.includes("Ja existe") || mensagem.includes("já existe")) {
           erro.textContent = "Este e-mail já está cadastrado.";
         } else {
           erro.textContent = mensagem || "Erro inesperado ao criar a conta.";
@@ -857,7 +943,7 @@
       setStatus("Carregando configurações...", "loading");
       try {
         const me = meValidado !== null ? meValidado : await apiFetch("/me");
-        if (!me) throw new Error("Resposta invalida ao consultar a conta.");
+        if (!me) throw new Error("Resposta inválida ao consultar a conta.");
         const providers = (me.providers_configurados || []).join(", ") || "nenhum";
         const nomeExibicao = me.full_name || me.email;
         document.getElementById("painel-recursos").innerHTML = `
@@ -894,7 +980,7 @@
         await carregarCredenciaisAzure();
         setStatus("Configurações carregadas", "success");
       } catch (e) {
-        setStatus("Erro: " + e.message, "error");
+        setStatus(e.message || "Não foi possível concluir a operação.", "error");
       }
     }
 
@@ -962,7 +1048,7 @@
             ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
           </button>
           <button id="aws-credential-cancel" class="btn-secondary" type="button">Cancelar</button>
-          <div id="aws-credential-message" class="status" role="alert" aria-live="polite"></div>
+          <div id="aws-credential-message" class="status" role="alert" aria-live="polite" aria-atomic="true" tabindex="-1"></div>
         </form>`;
       const form = document.getElementById("aws-credential-form");
       form.dataset.mode = substituir ? "substituir" : "cadastrar";
@@ -1030,7 +1116,7 @@
         await carregarCredenciaisAWS();
         setStatus("Credencial AWS excluída com sucesso.", "success");
       } catch (e) {
-        setStatus("Erro: " + e.message, "error");
+        setStatus(e.message || "Não foi possível concluir a operação.", "error");
       } finally {
         exclusaoCredencialAWSEmAndamento = false;
         if (botao && document.body.contains(botao)) botao.disabled = false;
@@ -1095,7 +1181,7 @@
             ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
           </button>
           <button id="gcp-credential-cancel" class="btn-secondary" type="button">Cancelar</button>
-          <div id="gcp-credential-message" class="status" role="alert" aria-live="polite"></div>
+          <div id="gcp-credential-message" class="status" role="alert" aria-live="polite" aria-atomic="true" tabindex="-1"></div>
         </form>`;
       const form = document.getElementById("gcp-credential-form");
       form.dataset.mode = substituir ? "substituir" : "cadastrar";
@@ -1159,7 +1245,7 @@
         await carregarCredenciaisGCP();
         setStatus("Credencial GCP excluída com sucesso.", "success");
       } catch (e) {
-        setStatus("Erro: " + e.message, "error");
+        setStatus(e.message || "Não foi possível concluir a operação.", "error");
       } finally {
         exclusaoCredencialGCPEmAndamento = false;
         if (botao && document.body.contains(botao)) botao.disabled = false;
@@ -1241,7 +1327,7 @@
             ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
           </button>
           <button id="azure-credential-cancel" class="btn-secondary" type="button">Cancelar</button>
-          <div id="azure-credential-message" class="status" role="alert" aria-live="polite"></div>
+          <div id="azure-credential-message" class="status" role="alert" aria-live="polite" aria-atomic="true" tabindex="-1"></div>
         </form>`;
       const form = document.getElementById("azure-credential-form");
       form.dataset.mode = substituir ? "substituir" : "cadastrar";
@@ -1313,7 +1399,7 @@
         await carregarCredenciaisAzure();
         setStatus("Credencial Azure excluída com sucesso.", "success");
       } catch (e) {
-        setStatus("Erro: " + e.message, "error");
+        setStatus(e.message || "Não foi possível concluir a operação.", "error");
       } finally {
         exclusaoCredencialAzureEmAndamento = false;
         if (botao && document.body.contains(botao)) botao.disabled = false;
@@ -1337,7 +1423,7 @@
             <input id="change-password-confirm" name="confirmacao_nova_senha" type="password" autocomplete="new-password" minlength="8" required>
           </div>
           <button id="change-password-submit" class="btn-login" type="submit">Salvar nova senha</button>
-          <div id="change-password-message" class="status" role="alert" aria-live="polite"></div>
+          <div id="change-password-message" class="status" role="alert" aria-live="polite" aria-atomic="true" tabindex="-1"></div>
         </form>`;
       document.getElementById("change-password-form").addEventListener("submit", alterarSenha);
       document.getElementById("change-password-current").focus();
@@ -1421,7 +1507,7 @@
             </div>
             <button id="plan-update-submit" class="btn-login" type="submit">Confirmar mudança</button>
             <button id="plan-update-cancel" class="btn-secondary" type="button">Cancelar</button>
-            <div id="plan-update-message" class="status" role="alert" aria-live="polite"></div>
+            <div id="plan-update-message" class="status" role="alert" aria-live="polite" aria-atomic="true" tabindex="-1"></div>
           </form>`;
 
         const form = document.getElementById("plan-update-form");
@@ -1492,7 +1578,7 @@
         atualizarDetalhes();
       } catch (e) {
         container.innerHTML = "";
-        setStatus("Erro: " + (e.message || "Não foi possível carregar as opções de plano."), "error");
+        setStatus(e.message || "Não foi possível carregar as opções de plano.", "error");
       }
     }
 
@@ -1629,7 +1715,7 @@
         renderizar([{ provider, resources: data.resources }]);
         setStatus(`${data.resources.length} recursos carregados — ${provider.toUpperCase()}`, 'success');
       } catch (e) {
-        setStatus(`Erro: ${e.message}`, 'error');
+        setStatus(e.message || 'Não foi possível concluir a operação.', 'error');
       }
     }
 
@@ -1663,7 +1749,7 @@
           'success'
         );
       } catch (e) {
-        setStatus(`Erro: ${e.message}`, 'error');
+        setStatus(e.message || 'Não foi possível concluir a operação.', 'error');
       }
     }
 
@@ -1799,7 +1885,7 @@
         mostrarLogs(data.logs, limite);
         setStatus(`${Math.min(limite, data.logs.length)} registros de auditoria`, 'success');
       } catch (e) {
-        setStatus(`Erro: ${e.message}`, 'error');
+        setStatus(e.message || 'Não foi possível concluir a operação.', 'error');
       }
     }
 
@@ -1818,7 +1904,7 @@
         mostrarDados(provider, bucket, data.records);
         setStatus(`${data.records.length} registros carregados de ${bucket}`, 'success');
       } catch (e) {
-        setStatus(`Erro: ${e.message}`, 'error');
+        setStatus(e.message || 'Não foi possível concluir a operação.', 'error');
       }
     }
 

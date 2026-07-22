@@ -22,7 +22,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
-| 4 | Telas essenciais | `[~]` | 83,33% da macroetapa (8,33% do projeto) | Cadastro, credenciais AWS/GCP/Azure e atualização do próprio plano concluídos; revisão geral das mensagens pendente. |
+| 4 | Telas essenciais | `[~]` | 83,33% da macroetapa (8,33% do projeto) | Cinco blocos concluídos; revisão geral das mensagens implementada localmente e pendente de implantação e validação em produção. |
 | 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -55,11 +55,11 @@ A macroetapa 4 está em andamento. Cadastro, credenciais AWS, GCP e Azure e atua
 
 O fluxo comercial vigente mantém os planos Gratuito, Popular e Premium e os valores já definidos no servidor. A mudança direta é permitida somente para o Gratuito ou para manter o plano atual. Popular e Premium dependem de solicitação PIX pendente e aprovação administrativa manual; a solicitação isolada não altera o plano. Nenhum gateway ou regra comercial nova integra este bloco.
 
-Referência operacional vigente:
+Referência operacional no início do bloco:
 
-- commit da `main` e frontend publicado: `d6de052e361031205fbc515f9741606ea38bcac5`;
+- base auditada da `main` e frontend publicado: `7accfbb6318ad018e41393732b65c4b7abf88f68`;
 - backend em produção: ECS task definition `nano-iaas-backend-dev:11`, imagem `git-5391c5a`;
-- a publicação da revisão posterior do backend permanece bloqueada pelo critério de zero vulnerabilidades críticas.
+- a implantação da revisão atual do backend permanece bloqueada pelo critério de zero vulnerabilidades críticas.
 
 Subitens previstos, na ordem de execução controlada:
 
@@ -68,13 +68,26 @@ Subitens previstos, na ordem de execução controlada:
 - Credenciais GCP `[x]`;
 - Credenciais Azure `[x]`;
 - Atualização do próprio plano `[x]`;
-- Revisão geral das mensagens de erro e sucesso `[ ]`.
+- Revisão geral das mensagens de erro e sucesso `[~]`.
 
 Cinco dos seis blocos internos estão formalmente concluídos. Isso representa 83,33% da macroetapa 4 e 8,33% do projeto.
 
 ### Evidência de conclusão do bloco 4.5
 
 Em 21/07/2026, o fluxo de atualização do próprio plano foi validado de forma autenticada e somente leitura com um usuário comum. `GET /me` e `GET /me/plano/opcoes` responderam HTTP 200; a estrutura dos planos, os valores e os modos de ativação foram confirmados; o frontend preservou a filtragem do plano atual; e nenhum segredo foi exposto. A validação não alterou plano, solicitação PIX ou qualquer dado persistente.
+
+### Situação do bloco 4.6
+
+A revisão geral das mensagens foi implementada e validada localmente. Ela inclui:
+
+- padronização de português, acentuação e fallbacks para HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502;
+- preservação de `Retry-After` e tratamento controlado de falhas de rede;
+- compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção;
+- allowlist para erros operacionais públicos e sanitização de `ValueError` desconhecido;
+- semântica acessível com `role`, `aria-live`, `aria-atomic` e foco no status principal de erro;
+- 253 testes aprovados, incluindo execução comportamental do JavaScript real com Node e sem rede externa.
+
+O bloco permanece `[~]` e não acrescenta percentual formal enquanto não houver implantação e validação em produção. O backend não será implantado enquanto a imagem candidata apresentar vulnerabilidades críticas. A Macroetapa 5 não deve ser iniciada antes desse fechamento.
 
 ## Repositórios oficiais
 
@@ -112,8 +125,9 @@ Percentuais antigos calculados com versões anteriores do roadmap, incluindo est
 
 ## Próxima ação autorizável
 
-1. Iniciar o bloco Revisão geral das mensagens de erro e sucesso.
-2. Inventariar e padronizar mensagens visíveis, fallbacks, acessibilidade e tratamento dos códigos HTTP, sem alterar contratos da API.
-3. Preservar a sanitização de dados sensíveis e as proteções administrativas e assíncronas já integradas.
-4. Não alterar regras comerciais, permissões, gateways, fluxos de pagamento ou recursos cloud neste bloco.
-5. Submeter a implementação em uma única PR para revisão, sem auto-merge.
+1. Submeter a implementação do Bloco 4.6 em uma única PR para revisão, sem auto-merge.
+2. Publicar o frontend somente pelo fluxo automático aprovado após o merge.
+3. Manter o deploy do backend bloqueado até existir imagem oficial com zero vulnerabilidades críticas.
+4. Após a liberação da imagem, implantar e validar em produção os fallbacks, a sanitização e a acessibilidade do bloco.
+5. Marcar o Bloco 4.6 como concluído e elevar a Fase 4 para 100% somente após essa validação.
+6. Não iniciar a Macroetapa 5 antes do fechamento formal da Macroetapa 4.
