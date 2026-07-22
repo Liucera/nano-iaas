@@ -603,11 +603,12 @@ def provider_response(status, body):
     return {"status": status, "body": body}
 
 
-def sem_credencial(provider):
+def sem_credencial(provider, legado=False):
     nomes = {"aws": "AWS", "gcp": "GCP", "azure": "Azure"}
+    usuario = "usuario" if legado else "usuário"
     return provider_response(
         400,
-        {"detail": f"Nenhuma credencial {nomes[provider]} cadastrada para este usuário"},
+        {"detail": f"Nenhuma credencial {nomes[provider]} cadastrada para este {usuario}"},
     )
 
 
@@ -625,8 +626,13 @@ def executar_cenario_frontend(action, responses, provider=None):
 
 @pytest.mark.frontend_static
 @pytest.mark.parametrize("provider", ["aws", "gcp", "azure"])
-def test_frontend_provider_sem_credencial_retorna_estado_vazio(provider):
-    result = executar_cenario_frontend("helper", {provider: sem_credencial(provider)}, provider)
+@pytest.mark.parametrize("legado", [False, True])
+def test_frontend_provider_sem_credencial_retorna_estado_vazio(provider, legado):
+    result = executar_cenario_frontend(
+        "helper",
+        {provider: sem_credencial(provider, legado=legado)},
+        provider,
+    )
     assert result["data"] == {"provider": provider, "resources": []}
     assert result["calls"][0]["authorization"] == "Bearer token-temporario-simulado"
 

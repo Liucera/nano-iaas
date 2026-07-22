@@ -740,9 +740,18 @@
     }
 
     const detalhesSemCredencial = {
-      aws: 'Nenhuma credencial AWS cadastrada para este usuário',
-      gcp: 'Nenhuma credencial GCP cadastrada para este usuário',
-      azure: 'Nenhuma credencial Azure cadastrada para este usuário',
+      aws: [
+        'Nenhuma credencial AWS cadastrada para este usuário',
+        'Nenhuma credencial AWS cadastrada para este usuario',
+      ],
+      gcp: [
+        'Nenhuma credencial GCP cadastrada para este usuário',
+        'Nenhuma credencial GCP cadastrada para este usuario',
+      ],
+      azure: [
+        'Nenhuma credencial Azure cadastrada para este usuário',
+        'Nenhuma credencial Azure cadastrada para este usuario',
+      ],
     };
 
     async function carregarProvider(provider) {
@@ -766,7 +775,11 @@
         falhaSessao.status = 401;
         throw falhaSessao;
       }
-      if (resposta.status === 400 && detalhe === detalhesSemCredencial[provider]) {
+      if (
+        resposta.status === 400 &&
+        detalhesSemCredencial[provider] &&
+        detalhesSemCredencial[provider].includes(detalhe)
+      ) {
         return { provider, resources: [] };
       }
       if (!resposta.ok) {

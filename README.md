@@ -56,7 +56,7 @@ Em 21/07/2026, o fluxo implantado foi validado de forma autenticada e somente le
 
 ### Revisão geral das mensagens
 
-A implementação do Bloco 4.6 padroniza mensagens públicas e fallbacks para respostas HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502, preserva `Retry-After`, trata falhas de conexão em português e impede a exposição literal de erros operacionais desconhecidos. As regiões de status passaram a anunciar erros de forma acessível e a direcionar o foco para o estado principal quando necessário.
+A implementação do Bloco 4.6 padroniza mensagens públicas e fallbacks para respostas HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502, preserva `Retry-After`, trata falhas de conexão em português e impede a exposição literal de erros operacionais desconhecidos. As regiões de status passaram a anunciar erros de forma acessível e a direcionar o foco para o estado principal quando necessário. O frontend mantém compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção.
 
 A validação local aprovou 253 testes, incluindo testes comportamentais Node sem rede real. A conclusão formal permanece pendente de implantação e validação em produção. A parte backend não será implantada enquanto a imagem candidata possuir vulnerabilidades críticas.
 

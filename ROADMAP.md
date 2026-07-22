@@ -82,6 +82,7 @@ A revisão geral das mensagens foi implementada e validada localmente. Ela inclu
 
 - padronização de português, acentuação e fallbacks para HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502;
 - preservação de `Retry-After` e tratamento controlado de falhas de rede;
+- compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção;
 - allowlist para erros operacionais públicos e sanitização de `ValueError` desconhecido;
 - semântica acessível com `role`, `aria-live`, `aria-atomic` e foco no status principal de erro;
 - 253 testes aprovados, incluindo execução comportamental do JavaScript real com Node e sem rede externa.
