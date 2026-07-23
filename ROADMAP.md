@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
-**Última atualização:** 21/07/2026
-**Percentual total formal do projeto:** **38,33%**
+**Última atualização:** 23/07/2026
+**Percentual total formal do projeto:** **40%**
 
 ## Governança
 
@@ -22,7 +22,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
-| 4 | Telas essenciais | `[~]` | 83,33% da macroetapa (8,33% do projeto) | Cinco blocos concluídos; revisão geral das mensagens implementada localmente e pendente de implantação e validação em produção. |
+| 4 | Telas essenciais | `[x]` | 100% da macroetapa (10% do projeto) | Os seis blocos foram implantados, validados e concluídos formalmente. |
 | 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -49,17 +49,18 @@ O domínio principal foi concluído formalmente. A situação institucional atua
 - aplicativo: <https://app.nano-iaas.com.br>;
 - API: <https://api.nano-iaas.com.br>.
 
-## Macroetapa 4 — Telas essenciais `[~]`
+## Macroetapa 4 — Telas essenciais `[x]`
 
-A macroetapa 4 está em andamento. Cadastro, credenciais AWS, GCP e Azure e atualização do próprio plano foram concluídos formalmente. O bloco atual é a Revisão geral das mensagens de erro e sucesso.
+A macroetapa 4 foi concluída formalmente. Cadastro, credenciais AWS, GCP e Azure, atualização do próprio plano e revisão geral das mensagens de erro e sucesso foram implantados e validados no escopo definido.
 
 O fluxo comercial vigente mantém os planos Gratuito, Popular e Premium e os valores já definidos no servidor. A mudança direta é permitida somente para o Gratuito ou para manter o plano atual. Popular e Premium dependem de solicitação PIX pendente e aprovação administrativa manual; a solicitação isolada não altera o plano. Nenhum gateway ou regra comercial nova integra este bloco.
 
-Referência operacional no início do bloco:
+Referência operacional de conclusão:
 
-- base auditada da `main` e frontend publicado: `7accfbb6318ad018e41393732b65c4b7abf88f68`;
-- backend em produção: ECS task definition `nano-iaas-backend-dev:11`, imagem `git-5391c5a`;
-- a implantação da revisão atual do backend permanece bloqueada pelo critério de zero vulnerabilidades críticas.
+- `main` e frontend publicado: `07d111bd9122cc55b6b54756c2be2337eaf1a0f1`;
+- backend em produção: ECS task definition `nano-iaas-backend-dev:12`;
+- imagem imutável: `488709146598.dkr.ecr.us-east-1.amazonaws.com/nano-iaas-backend-dev@sha256:51852fd81212d6c2c143d18d703492167d30dd6f3b2af31404999d922c8a047e`;
+- rollout ECS concluído, uma tarefa em execução, nenhum pending e target saudável no ALB.
 
 Subitens previstos, na ordem de execução controlada:
 
@@ -68,26 +69,28 @@ Subitens previstos, na ordem de execução controlada:
 - Credenciais GCP `[x]`;
 - Credenciais Azure `[x]`;
 - Atualização do próprio plano `[x]`;
-- Revisão geral das mensagens de erro e sucesso `[~]`.
+- Revisão geral das mensagens de erro e sucesso `[x]`.
 
-Cinco dos seis blocos internos estão formalmente concluídos. Isso representa 83,33% da macroetapa 4 e 8,33% do projeto.
+Seis dos seis blocos internos estão formalmente concluídos. Isso representa 100% da macroetapa 4 e 10% do projeto.
 
 ### Evidência de conclusão do bloco 4.5
 
 Em 21/07/2026, o fluxo de atualização do próprio plano foi validado de forma autenticada e somente leitura com um usuário comum. `GET /me` e `GET /me/plano/opcoes` responderam HTTP 200; a estrutura dos planos, os valores e os modos de ativação foram confirmados; o frontend preservou a filtragem do plano atual; e nenhum segredo foi exposto. A validação não alterou plano, solicitação PIX ou qualquer dado persistente.
 
-### Situação do bloco 4.6
+### Evidência de conclusão do bloco 4.6
 
-A revisão geral das mensagens foi implementada e validada localmente. Ela inclui:
+A revisão geral das mensagens foi implementada, implantada e validada. Ela inclui:
 
 - padronização de português, acentuação e fallbacks para HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502;
 - preservação de `Retry-After` e tratamento controlado de falhas de rede;
-- compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção;
+- compatibilidade temporária com respostas antigas sem acentuação;
 - allowlist para erros operacionais públicos e sanitização de `ValueError` desconhecido;
 - semântica acessível com `role`, `aria-live`, `aria-atomic` e foco no status principal de erro;
-- 253 testes aprovados, incluindo execução comportamental do JavaScript real com Node e sem rede externa.
+- 256 testes aprovados, incluindo execução comportamental do JavaScript real com Node e sem rede externa.
 
-O bloco permanece `[~]` e não acrescenta percentual formal enquanto não houver implantação e validação em produção. O backend não será implantado enquanto a imagem candidata apresentar vulnerabilidades críticas. A Macroetapa 5 não deve ser iniciada antes desse fechamento.
+A imagem oficial Alpine foi fixada por digest e publicada de forma imutável no ECR. O scan ECR do manifest executável terminou sem findings. O Docker Scout registrou somente o HIGH CVE-2024-23342 em `ecdsa 0.19.2`; o risco foi documentado como não alcançável pelo fluxo atual, pois o backend restringe tokens a `HS256`.
+
+O Terraform apply criou uma task definition e atualizou o serviço sem destruições. O ECS alcançou rollout `COMPLETED` na revisão `nano-iaas-backend-dev:12`, com uma tarefa em execução, nenhum pending e target saudável. Os smoke tests públicos e autenticados confirmaram HTTP 200 para documentação, OpenAPI, login, perfil e opções de plano; HTTP 401 sem token; HTTP 403 para auditoria por usuário comum; HTTP 422 para requisição inválida antes de persistência; e ausência de segredos nas respostas. Nenhum plano, PIX ou dado persistente foi alterado.
 
 ## Repositórios oficiais
 
@@ -115,19 +118,18 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 
 As 10 macroetapas possuem o mesmo peso de 10%:
 
-- 3 macroetapas concluídas × 10% = 30%;
-- 5 dos 6 blocos da macroetapa 4 concluídos = 8,33%;
+- 4 macroetapas concluídas × 10% = 40%;
+- 6 dos 6 blocos da macroetapa 4 concluídos = 10%;
 - macroetapas 5 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 38,33%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 40%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Submeter a implementação do Bloco 4.6 em uma única PR para revisão, sem auto-merge.
-2. Publicar o frontend somente pelo fluxo automático aprovado após o merge.
-3. Manter o deploy do backend bloqueado até existir imagem oficial com zero vulnerabilidades críticas.
-4. Após a liberação da imagem, implantar e validar em produção os fallbacks, a sanitização e a acessibilidade do bloco.
-5. Marcar o Bloco 4.6 como concluído e elevar a Fase 4 para 100% somente após essa validação.
-6. Não iniciar a Macroetapa 5 antes do fechamento formal da Macroetapa 4.
+1. Iniciar formalmente a Macroetapa 5 — Restrições S3.
+2. Auditar as permissões, políticas e fluxos S3 existentes antes de qualquer alteração.
+3. Definir critérios verificáveis de mínimo privilégio e preservação do comportamento read-only.
+4. Implementar mudanças somente em worktree isolado, com testes e revisão antes de Terraform ou deploy.
+5. Não antecipar a Macroetapa 6 antes da conclusão formal da Macroetapa 5.
