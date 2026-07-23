@@ -1,5 +1,6 @@
+import re
 import boto3
-from typing import Iterator, Dict, Any
+from typing import Iterator, Dict, Any, Iterable, Optional, Tuple
 from botocore.exceptions import ClientError
 
 from core.provider import CloudProvider
@@ -10,11 +11,43 @@ class S3Reader(CloudProvider):
     """Leitor de dados AWS S3 para Nano-IaaS."""
 
     name = "aws"
+    required_prefix = "dados/"
+    bucket_pattern = re.compile(
+        r"(?=.{3,63}$)(?!.*\.\.)[a-z0-9][a-z0-9.-]*[a-z0-9]"
+    )
 
-    def __init__(self):
+    def __init__(self, allowed_buckets: Optional[Iterable[str]] = None):
         self.client = None
         self.session = None
         self.data_reader = DataReader()
+        self.allowed_buckets = (
+            None
+            if allowed_buckets is None
+            else frozenset(
+                bucket.strip()
+                for bucket in allowed_buckets
+                if bucket.strip()
+            )
+        )
+
+    def _parse_resource_path(self, resource_path: str) -> Tuple[str, str]:
+        if not isinstance(resource_path, str) or not resource_path.startswith("s3://"):
+            raise ValueError("Caminho S3 inválido")
+
+        path = resource_path[len("s3://"):]
+        bucket, separator, key = path.partition("/")
+
+        if (
+            not separator
+            or not self.bucket_pattern.fullmatch(bucket)
+            or not key.startswith(self.required_prefix)
+        ):
+            raise ValueError("Caminho S3 fora do prefixo permitido")
+
+        if self.allowed_buckets is not None and bucket not in self.allowed_buckets:
+            raise ValueError("Bucket S3 não autorizado")
+
+        return bucket, key
 
     def authenticate(self, profile: Dict[str, Any]) -> bool:
         """Autentica usando profile AWS ou variaveis de ambiente."""
@@ -44,6 +77,15 @@ class S3Reader(CloudProvider):
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         """Lista buckets S3."""
+        if self.allowed_buckets is not None:
+            for bucket in sorted(self.allowed_buckets):
+                yield {
+                    "name": bucket,
+                    "created": None,
+                    "type": "bucket",
+                }
+            return
+
         try:
             response = self.client.list_buckets()
             for bucket in response.get('Buckets', []):
@@ -62,10 +104,7 @@ class S3Reader(CloudProvider):
         Args:
             resource_path: s3://bucket/prefix/ ou s3://bucket/key
         """
-        path = resource_path.replace('s3://', '')
-        parts = path.split('/', 1)
-        bucket = parts[0]
-        prefix = parts[1] if len(parts) > 1 else ''
+        bucket, prefix = self._parse_resource_path(resource_path)
 
         limit = options.get('limit', 100)
         count = 0
@@ -101,10 +140,7 @@ class S3Reader(CloudProvider):
             print("❌ Erro ao ler S3")
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
-        path = resource_path.replace('s3://', '')
-        parts = path.split('/', 1)
-        bucket = parts[0]
-        key = parts[1] if len(parts) > 1 else ''
+        bucket, key = self._parse_resource_path(resource_path)
 
         try:
             response = self.client.head_object(Bucket=bucket, Key=key)
@@ -116,5 +152,5 @@ class S3Reader(CloudProvider):
                 'content_type': response.get('ContentType', 'unknown'),
                 'etag': response['ETag']
             }
-        except ClientError as e:
-            return {'error': str(e)}
+        except ClientError:
+            return {'error': 'Falha ao consultar metadados S3'}

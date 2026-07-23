@@ -2024,10 +2024,20 @@ def obter_provider_autenticado(provider: str, usuario: dict):
         return p
 
     if provider == "aws":
-        p = S3Reader()
         if credencial:
+            p = S3Reader()
             p.authenticate(credencial)
         elif usuario["is_admin"]:
+            allowed_buckets = [
+                bucket.strip()
+                for bucket in os.environ.get(
+                    "NANO_IAAS_S3_ALLOWED_BUCKETS", ""
+                ).split(",")
+                if bucket.strip()
+            ]
+            if not allowed_buckets:
+                raise ValueError("Buckets S3 sistêmicos não configurados")
+            p = S3Reader(allowed_buckets=allowed_buckets)
             p.authenticate({'mode': 'env'})
         else:
             raise ValueError("Nenhuma credencial AWS cadastrada para este usuário")
@@ -2080,7 +2090,7 @@ def read_resource(provider: str, bucket: str, usuario=Depends(usuario_atual)):
 
         prefix = f"gs://{bucket}/dados/" if provider == "gcp" else \
                  f"azure://{bucket}/dados/" if provider == "azure" else \
-                 f"s3://{bucket}/"
+                 f"s3://{bucket}/dados/"
 
         records = list(p.read(prefix))
         registrar_acesso(usuario["email"], "READ", provider, bucket, f"{len(records)} registros")

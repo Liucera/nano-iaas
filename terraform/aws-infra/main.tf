@@ -634,6 +634,14 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
   })
 }
 
+locals {
+  nano_iaas_s3_allowed_buckets = [
+    "nano-iaas-raw-${var.environment}",
+    "nano-iaas-processed-${var.environment}",
+    "nano-iaas-archive-${var.environment}"
+  ]
+}
+
 # Permissao de leitura no S3 para a role da task, equivalente ao usuario nano-iaas-reader
 # usado pela CLI, agora aplicada via IAM Role em vez de profile/credenciais locais
 resource "aws_iam_role_policy" "ecs_task_s3_read" {
@@ -642,16 +650,44 @@ resource "aws_iam_role_policy" "ecs_task_s3_read" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "s3:GetObject",
-        "s3:ListBucket",
-        "s3:ListAllMyBuckets",
-        "s3:GetBucketLocation"
-      ]
-      Resource = ["*"]
-    }]
+    Statement = [
+      {
+        Sid    = "BucketLocation"
+        Effect = "Allow"
+        Action = ["s3:GetBucketLocation"]
+        Resource = [
+          for bucket in local.nano_iaas_s3_allowed_buckets :
+          "arn:aws:s3:::${bucket}"
+        ]
+      },
+      {
+        Sid    = "ListDadosPrefix"
+        Effect = "Allow"
+        Action = ["s3:ListBucket"]
+        Resource = [
+          for bucket in local.nano_iaas_s3_allowed_buckets :
+          "arn:aws:s3:::${bucket}"
+        ]
+        Condition = {
+          StringLike = {
+            "s3:prefix" = [
+              "dados",
+              "dados/",
+              "dados/*"
+            ]
+          }
+        }
+      },
+      {
+        Sid    = "ReadDadosObjects"
+        Effect = "Allow"
+        Action = ["s3:GetObject"]
+        Resource = [
+          for bucket in local.nano_iaas_s3_allowed_buckets :
+          "arn:aws:s3:::${bucket}/dados/*"
+        ]
+      }
+    ]
   })
 }
 
@@ -678,6 +714,7 @@ resource "aws_ecs_task_definition" "nano_iaas_backend" {
       environment = [
         { name = "DATABASE_SECRET_ARN", value = aws_secretsmanager_secret.db_credentials.arn },
         { name = "AWS_REGION", value = var.aws_region },
+        { name = "NANO_IAAS_S3_ALLOWED_BUCKETS", value = join(",", local.nano_iaas_s3_allowed_buckets) },
         { name = "LOGIN_RATE_LIMIT_ACCOUNT_MAX_ATTEMPTS", value = "10" },
         { name = "LOGIN_RATE_LIMIT_ACCOUNT_IP_MAX_ATTEMPTS", value = "5" },
         { name = "LOGIN_RATE_LIMIT_WINDOW_SECONDS", value = "300" },
