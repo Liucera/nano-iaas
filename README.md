@@ -21,19 +21,19 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-### Estado oficial em 21/07/2026
+### Estado oficial em 23/07/2026
 
 - Macroetapas 1, 2 e 3: concluídas;
-- Macroetapa 4 — Telas essenciais: em andamento, com cinco dos seis blocos concluídos (83,33%);
+- Macroetapa 4 — Telas essenciais: concluída, com seis dos seis blocos formalmente encerrados (100%);
 - Cadastro `[x]`;
 - Credenciais AWS `[x]`;
 - Credenciais GCP `[x]`;
 - Credenciais Azure `[x]`;
 - Atualização do próprio plano `[x]`, concluída dentro das regras comerciais e dos mecanismos de autorização já existentes;
-- Revisão geral das mensagens de erro e sucesso `[~]`, implementada e validada localmente, com implantação e validação em produção pendentes;
+- Revisão geral das mensagens de erro e sucesso `[x]`, implantada e validada em produção;
 - validação real das credenciais contra AWS, GCP ou Azure: reservada para a Macroetapa 6.
 
-A base auditada para o início deste bloco é a `main` no commit `7accfbb6318ad018e41393732b65c4b7abf88f68`. O frontend publicado corresponde a essa base. O backend em produção permanece na task definition ECS `nano-iaas-backend-dev:11`, com a imagem `git-5391c5a`; a implantação da revisão atual do backend continua bloqueada pelo critério de zero vulnerabilidades críticas.
+A referência operacional vigente é a `main` no commit `07d111bd9122cc55b6b54756c2be2337eaf1a0f1`. O frontend publicado corresponde a essa revisão. O backend está implantado na task definition ECS `nano-iaas-backend-dev:12`, usando a imagem imutável `nano-iaas-backend-dev@sha256:51852fd81212d6c2c143d18d703492167d30dd6f3b2af31404999d922c8a047e`.
 
 ### Planos e fluxo comercial vigente
 
@@ -56,9 +56,11 @@ Em 21/07/2026, o fluxo implantado foi validado de forma autenticada e somente le
 
 ### Revisão geral das mensagens
 
-A implementação do Bloco 4.6 padroniza mensagens públicas e fallbacks para respostas HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502, preserva `Retry-After`, trata falhas de conexão em português e impede a exposição literal de erros operacionais desconhecidos. As regiões de status passaram a anunciar erros de forma acessível e a direcionar o foco para o estado principal quando necessário. O frontend mantém compatibilidade temporária com a mensagem sem acentuação emitida pelo backend atualmente em produção.
+A implementação do Bloco 4.6 padroniza mensagens públicas e fallbacks para respostas HTTP 400, 401, 403, 404, 409, 422, 429, 500 e 502, preserva `Retry-After`, trata falhas de conexão em português e impede a exposição literal de erros operacionais desconhecidos. As regiões de status anunciam erros de forma acessível e direcionam o foco para o estado principal quando necessário. O frontend preserva compatibilidade temporária com respostas antigas sem acentuação.
 
-A validação local aprovou 253 testes, incluindo testes comportamentais Node sem rede real. A conclusão formal permanece pendente de implantação e validação em produção. A parte backend não será implantada enquanto a imagem candidata possuir vulnerabilidades críticas.
+A validação aprovou 256 testes, incluindo testes comportamentais Node sem rede real. A imagem Alpine oficial foi fixada por digest, validada como `linux/amd64` e publicada no ECR; o scan ECR do manifest executável foi concluído sem findings. O Docker Scout registrou apenas o HIGH CVE-2024-23342 em `ecdsa 0.19.2`, documentado como não alcançável pelo fluxo atual porque o backend restringe criação e validação de tokens a `HS256`.
+
+Em produção, o serviço ECS alcançou estado estável com uma tarefa em execução, nenhum pending e target saudável no ALB. Os smoke tests confirmaram documentação e OpenAPI em HTTP 200, autenticação de usuário comum, `GET /me`, opções de plano, bloqueio HTTP 403 de auditoria para não administradores, validação HTTP 422 antes de persistência e ausência de segredos nas respostas. Nenhum plano, PIX ou dado persistente foi alterado.
 
 ### Repositórios oficiais e responsabilidades
 
