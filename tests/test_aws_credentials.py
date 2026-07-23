@@ -388,7 +388,7 @@ def test_legacy_aws_client_errors_do_not_log_credentials(operation, capsys):
     if operation == "list":
         assert list(reader.list_resources()) == []
     else:
-        assert list(reader.read("s3://fictitious-bucket")) == []
+        assert list(reader.read("s3://fictitious-bucket/dados/")) == []
 
     output = capsys.readouterr().out
     assert ACCESS_KEY_ONE not in output
