@@ -179,6 +179,11 @@ def fake_database(monkeypatch):
         return connection
 
     monkeypatch.setattr(backend, "conectar_db", connect)
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     backend._fernet = None
     return state, connections
 
@@ -321,6 +326,11 @@ def test_audit_contains_only_action_user_and_provider(fake_database):
 
 @pytest.mark.parametrize("operation", ["create", "replace", "delete"])
 def test_audit_failure_rolls_back_mutation(monkeypatch, operation):
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     state = {"credentials": {}, "audits": []}
     monkeypatch.setattr(backend, "conectar_db", lambda: FakeConnection(state))
     if operation != "create":

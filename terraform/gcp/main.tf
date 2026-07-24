@@ -12,6 +12,18 @@ provider "google" {
   region  = var.region
 }
 
+resource "google_project_service" "required" {
+  for_each = toset([
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "storage.googleapis.com"
+  ])
+
+  project            = var.project_id
+  service            = each.key
+  disable_on_destroy = false
+}
+
 # Bucket GCS - Dev
 resource "google_storage_bucket" "nano_iaas_dev" {
   name          = "nano-iaas-dev-${var.project_id}"
@@ -19,6 +31,17 @@ resource "google_storage_bucket" "nano_iaas_dev" {
   force_destroy = false
 
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.required]
 
   labels = {
     project     = "nano-iaas"
@@ -34,6 +57,17 @@ resource "google_storage_bucket" "nano_iaas_prod" {
   force_destroy = false
 
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.required]
 
   labels = {
     project     = "nano-iaas"
@@ -49,6 +83,17 @@ resource "google_storage_bucket" "nano_iaas_backup" {
   force_destroy = false
 
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [google_project_service.required]
 
   labels = {
     project     = "nano-iaas"
@@ -62,6 +107,28 @@ resource "google_service_account" "nano_iaas_reader" {
   account_id   = "nano-iaas-reader"
   display_name = "Nano-IaaS Reader"
   description  = "Service account com permissao de leitura para o nano-iaas"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_project_iam_custom_role" "nano_iaas_bucket_lister" {
+  project     = var.project_id
+  role_id     = "nanoIaasBucketLister"
+  title       = "Nano-IaaS Bucket Lister"
+  description = "Permite listar e consultar metadados dos buckets GCS"
+
+  permissions = [
+    "storage.buckets.get",
+    "storage.buckets.list"
+  ]
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_project_iam_member" "bucket_lister" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.nano_iaas_bucket_lister.name
+  member  = "serviceAccount:${google_service_account.nano_iaas_reader.email}"
 }
 
 # Permissao de leitura nos buckets

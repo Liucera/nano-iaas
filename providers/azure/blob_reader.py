@@ -1,6 +1,8 @@
+import re
 from typing import Iterator, Dict, Any
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import AzureError
+from azure.identity import ClientSecretCredential
 
 from core.provider import CloudProvider
 from core.data_reader import DataReader
@@ -16,32 +18,70 @@ class BlobReader(CloudProvider):
         self.data_reader = DataReader()
 
     def authenticate(self, profile: Dict[str, Any]) -> bool:
-        """
-        Autentica usando connection string.
-
-        profile esperado: {"connection_string": "..."}
-        Se profile estiver vazio, tenta a variavel de ambiente
-        AZURE_STORAGE_CONNECTION_STRING (usada como fallback do sistema,
-        equivalente ao comportamento do S3Reader com IAM Role).
-        """
+        """Autentica por connection string ou service principal."""
         try:
             import os
-            connection_string = profile.get('connection_string')
-            if profile and not connection_string:
-                # O cadastro por service principal e suportado pelo backend, mas
-                # sua validacao real pertence a Macroetapa 6. Nao use a
-                # credencial do sistema quando o usuario possui perfil proprio.
-                print("❌ Credencial Azure pendente de validação")
-                return False
-            connection_string = connection_string or os.environ.get('AZURE_STORAGE_CONNECTION_STRING')
+
+            connection_string = profile.get("connection_string") if profile else None
+            if connection_string:
+                self.client = BlobServiceClient.from_connection_string(
+                    connection_string
+                )
+                return True
+
+            if profile:
+                storage_account_name = profile.get("storage_account_name")
+                required = (
+                    profile.get("tenant_id"),
+                    profile.get("client_id"),
+                    profile.get("client_secret"),
+                    storage_account_name,
+                )
+                if (
+                    not all(required)
+                    or not isinstance(storage_account_name, str)
+                    or not re.fullmatch(r"[a-z0-9]{3,24}", storage_account_name)
+                ):
+                    print("❌ Credencial Azure pendente de validação")
+                    return False
+
+                credential = ClientSecretCredential(
+                    tenant_id=profile["tenant_id"],
+                    client_id=profile["client_id"],
+                    client_secret=profile["client_secret"],
+                )
+                account_url = (
+                    f"https://{storage_account_name}.blob.core.windows.net"
+                )
+                self.client = BlobServiceClient(
+                    account_url=account_url,
+                    credential=credential,
+                )
+                return True
+
+            connection_string = os.environ.get(
+                "AZURE_STORAGE_CONNECTION_STRING"
+            )
             if not connection_string:
-                print("❌ Nenhuma connection string do Azure disponivel")
+                print("❌ Nenhuma connection string do Azure disponível")
                 return False
 
-            self.client = BlobServiceClient.from_connection_string(connection_string)
+            self.client = BlobServiceClient.from_connection_string(
+                connection_string
+            )
             return True
         except Exception:
             print("❌ Erro ao autenticar no Azure")
+            return False
+
+    def validate_credentials(self) -> bool:
+        """Valida a credencial com uma chamada autenticada ao Blob Storage."""
+        try:
+            containers = self.client.list_containers(results_per_page=1)
+            next(iter(containers), None)
+            return True
+        except Exception:
+            print("❌ Falha ao validar credenciais Azure")
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:

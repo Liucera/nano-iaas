@@ -75,6 +75,17 @@ class S3Reader(CloudProvider):
             print("❌ Erro ao autenticar na AWS")
             return False
 
+    def validate_credentials(self) -> bool:
+        """Valida as credenciais com uma chamada autenticada ao AWS STS."""
+        try:
+            if self.session is None:
+                return False
+            self.session.client("sts").get_caller_identity()
+            return True
+        except Exception:
+            print("❌ Falha ao validar credenciais AWS")
+            return False
+
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         """Lista buckets S3."""
         if self.allowed_buckets is not None:

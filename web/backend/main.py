@@ -959,12 +959,18 @@ def mascarar_identificador_azure(valor: str) -> str:
 
 def _metadata_credencial_azure(linha: dict) -> dict:
     credencial = json.loads(descriptografar(linha["credencial_cifrada"]))
+    storage_account_name = credencial.get("storage_account_name", "")
     return {
         "id": linha["id"],
         "provider": "azure",
         "tenant_id_masked": mascarar_identificador_azure(credencial["tenant_id"]),
         "client_id_masked": mascarar_identificador_azure(credencial["client_id"]),
         "subscription_id_masked": mascarar_identificador_azure(credencial["subscription_id"]),
+        "storage_account_name_masked": (
+            mascarar_identificador_azure(storage_account_name)
+            if storage_account_name
+            else ""
+        ),
         "criado_em": linha["criado_em"],
     }
 
@@ -1273,6 +1279,7 @@ class CredencialAzure(BaseModel):
     client_id: object | None = None
     client_secret: object | None = None
     subscription_id: object | None = None
+    storage_account_name: object | None = None
 
 class CredencialAzureResponse(BaseModel):
     id: int
@@ -1280,6 +1287,7 @@ class CredencialAzureResponse(BaseModel):
     tenant_id_masked: str
     client_id_masked: str
     subscription_id_masked: str
+    storage_account_name_masked: str
     criado_em: datetime
 
 # ── Funcoes de autenticacao ─────────────────────────────────
@@ -1835,6 +1843,26 @@ def _normalizar_uuid_azure(valor: object, campo: str) -> str:
     return str(identificador)
 
 
+def _normalizar_storage_account_azure(valor: object) -> str:
+    if not isinstance(valor, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Nome da Storage Account Azure inválido",
+        )
+    normalizado = valor.strip()
+    if (
+        not 3 <= len(normalizado) <= 24
+        or not normalizado.isascii()
+        or not normalizado.isalnum()
+        or normalizado.lower() != normalizado
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Nome da Storage Account Azure inválido",
+        )
+    return normalizado
+
+
 def validar_credencial_azure(dados: CredencialAzure) -> dict:
     client_secret = dados.client_secret
     if not isinstance(client_secret, str) or not client_secret.strip() or len(client_secret) > 4096:
@@ -1844,11 +1872,57 @@ def validar_credencial_azure(dados: CredencialAzure) -> dict:
         "client_id": _normalizar_uuid_azure(dados.client_id, "Client ID"),
         "client_secret": client_secret.strip(),
         "subscription_id": _normalizar_uuid_azure(dados.subscription_id, "Subscription ID"),
+        "storage_account_name": _normalizar_storage_account_azure(
+            dados.storage_account_name
+        ),
     }
 
 
 def erro_interno_credencial_azure() -> HTTPException:
     return HTTPException(status_code=500, detail="Não foi possível processar a credencial Azure")
+
+def validar_acesso_credencial_cloud(
+    provider: str,
+    credencial: dict,
+) -> None:
+    readers = {
+        "aws": S3Reader,
+        "gcp": GCSReader,
+        "azure": BlobReader,
+    }
+    nomes = {
+        "aws": "AWS",
+        "gcp": "GCP",
+        "azure": "Azure",
+    }
+
+    reader_class = readers.get(provider)
+    if reader_class is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Provider de credencial inválido",
+        )
+
+    reader = reader_class()
+    if (
+        not reader.authenticate(credencial)
+        or not reader.validate_credentials()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Não foi possível validar a credencial {nomes[provider]}"
+            ),
+        )
+
+
+def preparar_credencial_cloud(
+    provider: str,
+    credencial: dict,
+) -> dict:
+    validar_acesso_credencial_cloud(provider, credencial)
+    return credencial
+
 
 @app.get("/credenciais/aws", response_model=list[CredencialAWSResponse])
 def listar_credenciais_aws(usuario=Depends(usuario_atual)):
@@ -1859,7 +1933,7 @@ def cadastrar_credencial_aws(dados: CredencialAWS, usuario=Depends(usuario_atual
     status_salvamento, credencial = salvar_credencial_aws_usuario(
         usuario["id"],
         usuario["email"],
-        validar_credencial_aws(dados),
+        preparar_credencial_cloud("aws", validar_credencial_aws(dados)),
         substituir=False,
     )
     if status_salvamento == "exists":
@@ -1874,7 +1948,7 @@ def substituir_credencial_aws(dados: CredencialAWS, usuario=Depends(usuario_atua
     status_salvamento, credencial = salvar_credencial_aws_usuario(
         usuario["id"],
         usuario["email"],
-        validar_credencial_aws(dados),
+        preparar_credencial_cloud("aws", validar_credencial_aws(dados)),
         substituir=True,
     )
     if status_salvamento == "missing":
@@ -1897,7 +1971,7 @@ def cadastrar_credencial_gcp(dados: CredencialGCP, usuario=Depends(usuario_atual
     status_salvamento, credencial = salvar_credencial_gcp_usuario(
         usuario["id"],
         usuario["email"],
-        validar_credencial_gcp(dados),
+        preparar_credencial_cloud("gcp", validar_credencial_gcp(dados)),
         substituir=False,
     )
     if status_salvamento == "exists":
@@ -1913,7 +1987,7 @@ def substituir_credencial_gcp(dados: CredencialGCP, usuario=Depends(usuario_atua
     status_salvamento, credencial = salvar_credencial_gcp_usuario(
         usuario["id"],
         usuario["email"],
-        validar_credencial_gcp(dados),
+        preparar_credencial_cloud("gcp", validar_credencial_gcp(dados)),
         substituir=True,
     )
     if status_salvamento == "missing":
@@ -1943,7 +2017,7 @@ def cadastrar_credencial_azure(dados: CredencialAzure, usuario=Depends(usuario_a
         status_salvamento, credencial = salvar_credencial_azure_usuario(
             usuario["id"],
             usuario["email"],
-            validar_credencial_azure(dados),
+            preparar_credencial_cloud("azure", validar_credencial_azure(dados)),
             substituir=False,
         )
         if status_salvamento == "exists":
@@ -1964,7 +2038,7 @@ def substituir_credencial_azure(dados: CredencialAzure, usuario=Depends(usuario_
         status_salvamento, credencial = salvar_credencial_azure_usuario(
             usuario["id"],
             usuario["email"],
-            validar_credencial_azure(dados),
+            preparar_credencial_cloud("azure", validar_credencial_azure(dados)),
             substituir=True,
         )
         if status_salvamento == "missing":
@@ -2026,7 +2100,7 @@ def obter_provider_autenticado(provider: str, usuario: dict):
     if provider == "aws":
         if credencial:
             p = S3Reader()
-            p.authenticate(credencial)
+            ok = p.authenticate(credencial)
         elif usuario["is_admin"]:
             allowed_buckets = [
                 bucket.strip()
@@ -2038,9 +2112,11 @@ def obter_provider_autenticado(provider: str, usuario: dict):
             if not allowed_buckets:
                 raise ValueError("Buckets S3 sistêmicos não configurados")
             p = S3Reader(allowed_buckets=allowed_buckets)
-            p.authenticate({'mode': 'env'})
+            ok = p.authenticate({"mode": "env"})
         else:
             raise ValueError("Nenhuma credencial AWS cadastrada para este usuário")
+        if not ok:
+            raise ValueError("Falha ao autenticar na AWS com as credenciais fornecidas")
         return p
 
     raise ValueError("Provider não encontrado")
@@ -2051,6 +2127,7 @@ ERROS_OPERACIONAIS_PUBLICOS = frozenset({
     "Nenhuma credencial Azure cadastrada para este usuário",
     "Nenhuma credencial AWS cadastrada para este usuário",
     "Falha ao autenticar no GCP com as credenciais fornecidas",
+    "Falha ao autenticar na AWS com as credenciais fornecidas",
     "Falha ao autenticar no Azure com as credenciais fornecidas",
     "Provider não encontrado",
 })

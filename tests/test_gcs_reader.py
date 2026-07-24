@@ -70,3 +70,18 @@ def test_google_errors_never_log_or_return_sensitive_exception(operation, capsys
         }
 
     assert sensitive not in capsys.readouterr().out
+
+
+def test_validate_credentials_limits_gcp_bucket_query():
+    calls = []
+
+    class FakeClient:
+        def list_buckets(self, max_results):
+            calls.append(max_results)
+            return iter([])
+
+    reader = GCSReader()
+    reader.client = FakeClient()
+
+    assert reader.validate_credentials() is True
+    assert calls == [1]

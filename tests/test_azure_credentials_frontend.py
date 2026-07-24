@@ -9,7 +9,7 @@ FRONTEND = Path(__file__).parents[1] / "docs" / "index.html"
 @pytest.mark.frontend_static
 def test_frontend_has_dedicated_secure_azure_form_without_legacy_prompt():
     html = FRONTEND.read_text()
-    for field in ("tenant_id", "client_id", "client_secret", "subscription_id"):
+    for field in ("tenant_id", "client_id", "client_secret", "subscription_id", "storage_account_name"):
         assert f'name="{field}"' in html
     assert 'id="azure-client-secret"' in html
     assert 'type="password"' in html
@@ -39,6 +39,7 @@ def test_frontend_never_repopulates_secret_and_renders_only_masked_metadata():
     assert "tenant_id_masked" in listing
     assert "client_id_masked" in listing
     assert "subscription_id_masked" in listing
+    assert "storage_account_name_masked" in listing
     assert ".textContent =" in listing
     assert "client_secret" not in listing
     form = html[html.index("function exibirFormularioCredencialAzure"):html.index("async function excluirCredencialAzure")]

@@ -43,6 +43,16 @@ class GCSReader(CloudProvider):
             print("Erro ao autenticar no GCP")
             return False
 
+    def validate_credentials(self) -> bool:
+        """Valida a service account com uma chamada autenticada ao GCS."""
+        try:
+            buckets = self.client.list_buckets(max_results=1)
+            next(iter(buckets), None)
+            return True
+        except Exception:
+            print("Erro ao validar credenciais GCP")
+            return False
+
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
         try:
             for bucket in self.client.list_buckets():
