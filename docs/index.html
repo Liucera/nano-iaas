@@ -1272,7 +1272,8 @@
       if (
         typeof credencial.tenant_id_masked !== "string" ||
         typeof credencial.client_id_masked !== "string" ||
-        typeof credencial.subscription_id_masked !== "string"
+        typeof credencial.subscription_id_masked !== "string" ||
+        typeof credencial.storage_account_name_masked !== "string"
       ) {
         throw new Error("Resposta inválida ao listar credenciais Azure.");
       }
@@ -1281,6 +1282,7 @@
           <p>Tenant ID: <code id="azure-tenant-id-masked"></code></p>
           <p>Client ID: <code id="azure-client-id-masked"></code></p>
           <p>Subscription ID: <code id="azure-subscription-id-masked"></code></p>
+          <p>Storage Account: <code id="azure-storage-account-masked"></code></p>
           <div class="settings-actions">
             <button id="azure-credential-replace" class="btn-login" type="button">Substituir</button>
             <button id="azure-credential-delete" class="btn-login btn-danger" type="button">Excluir</button>
@@ -1290,6 +1292,8 @@
       document.getElementById("azure-client-id-masked").textContent = credencial.client_id_masked;
       document.getElementById("azure-subscription-id-masked").textContent =
         credencial.subscription_id_masked;
+      document.getElementById("azure-storage-account-masked").textContent =
+        credencial.storage_account_name_masked || "Não configurada";
       document.getElementById("azure-credential-replace").addEventListener(
         "click", () => exibirFormularioCredencialAzure("substituir")
       );
@@ -1323,6 +1327,12 @@
             <input id="azure-subscription-id" name="subscription_id" type="text" maxlength="64"
               autocomplete="off" autocapitalize="none" spellcheck="false" required>
           </div>
+          <div class="campo">
+            <label for="azure-storage-account-name">Storage Account</label>
+            <input id="azure-storage-account-name" name="storage_account_name"
+              type="text" minlength="3" maxlength="24" pattern="[a-z0-9]{3,24}"
+              autocomplete="off" autocapitalize="none" spellcheck="false" required>
+          </div>
           <button id="azure-credential-submit" class="btn-login" type="submit">
             ${substituir ? "Substituir credencial" : "Cadastrar credencial"}
           </button>
@@ -1348,12 +1358,20 @@
       const clientId = form.elements.client_id.value.trim();
       const clientSecret = form.elements.client_secret.value.trim();
       const subscriptionId = form.elements.subscription_id.value.trim();
+      const storageAccountName =
+        form.elements.storage_account_name.value.trim();
       const substituir = form.dataset.mode === "substituir";
       const mensagem = document.getElementById("azure-credential-message");
       const botao = document.getElementById("azure-credential-submit");
 
-      if (!tenantId || !clientId || !clientSecret || !subscriptionId) {
-        mensagem.textContent = "Preencha os quatro campos da credencial Azure.";
+      if (
+        !tenantId ||
+        !clientId ||
+        !clientSecret ||
+        !subscriptionId ||
+        !storageAccountName
+      ) {
+        mensagem.textContent = "Preencha os cinco campos da credencial Azure.";
         mensagem.className = "status error";
         return;
       }
@@ -1368,6 +1386,7 @@
             client_id: clientId,
             client_secret: clientSecret,
             subscription_id: subscriptionId,
+            storage_account_name: storageAccountName,
           },
         });
         form.reset();

@@ -42,16 +42,25 @@ TENANT_TWO = "44444444-4444-4444-8444-444444444444"
 CLIENT_TWO = "55555555-5555-4555-8555-555555555555"
 SUBSCRIPTION_TWO = "66666666-6666-4666-8666-666666666666"
 SECRET_TWO = "fictitious-client-secret-material-two"
+STORAGE_ONE = "nanoiaasstorageone"
+STORAGE_TWO = "nanoiaasstoragetwo"
 USER_ONE = {"id": 71, "email": "azure-one@example.invalid"}
 USER_TWO = {"id": 72, "email": "azure-two@example.invalid"}
 
 
-def azure_request(tenant=TENANT_ONE, client=CLIENT_ONE, secret=SECRET_ONE, subscription=SUBSCRIPTION_ONE):
+def azure_request(
+    tenant=TENANT_ONE,
+    client=CLIENT_ONE,
+    secret=SECRET_ONE,
+    subscription=SUBSCRIPTION_ONE,
+    storage_account=STORAGE_ONE,
+):
     return backend.CredencialAzure(
         tenant_id=tenant,
         client_id=client,
         client_secret=secret,
         subscription_id=subscription,
+        storage_account_name=storage_account,
     )
 
 
@@ -140,6 +149,11 @@ class FakeConnection:
 def fake_database(monkeypatch):
     state = {"credentials": {}, "audits": []}
     monkeypatch.setattr(backend, "conectar_db", lambda: FakeConnection(state))
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     backend._fernet = None
     return state
 
@@ -154,9 +168,12 @@ def test_empty_list_and_full_crud_are_scoped_to_token_user(fake_database):
     assert created["tenant_id_masked"].startswith("1111")
     assert created["client_id_masked"].endswith("2222")
     assert created["subscription_id_masked"].endswith("3333")
+    assert created["storage_account_name_masked"].startswith("nano")
     assert SECRET_ONE not in repr(created)
     ciphertext = state["credentials"][USER_ONE["id"]]["credencial_cifrada"]
-    for value in (TENANT_ONE, CLIENT_ONE, SECRET_ONE, SUBSCRIPTION_ONE):
+    for value in (
+        TENANT_ONE, CLIENT_ONE, SECRET_ONE, SUBSCRIPTION_ONE, STORAGE_ONE
+    ):
         assert value not in ciphertext
     stored = json.loads(backend.descriptografar(ciphertext))
     assert stored == {
@@ -164,6 +181,7 @@ def test_empty_list_and_full_crud_are_scoped_to_token_user(fake_database):
         "client_id": CLIENT_ONE,
         "client_secret": SECRET_ONE,
         "subscription_id": SUBSCRIPTION_ONE,
+        "storage_account_name": STORAGE_ONE,
     }
     replaced = backend.substituir_credencial_azure(
         azure_request(TENANT_TWO, CLIENT_TWO, SECRET_TWO, SUBSCRIPTION_TWO), USER_ONE
@@ -280,7 +298,8 @@ def test_schema_openapi_and_cloud_management_contract(fake_database, monkeypatch
         assert schema["paths"]["/credenciais/azure"][method]["security"] == [{"OAuth2PasswordBearer": []}]
     properties = backend.CredencialAzureResponse.model_json_schema()["properties"]
     assert set(properties) == {
-        "id", "provider", "tenant_id_masked", "client_id_masked", "subscription_id_masked", "criado_em"
+        "id", "provider", "tenant_id_masked", "client_id_masked",
+        "subscription_id_masked", "storage_account_name_masked", "criado_em"
     }
     monkeypatch.setattr(backend.BlobReader, "authenticate", lambda *_args: pytest.fail("Azure called"))
     backend.cadastrar_credencial_azure(azure_request(), USER_ONE)
@@ -307,3 +326,122 @@ def test_azure_provider_errors_are_sanitized_and_service_principal_does_not_use_
         "error": "Não foi possível consultar os metadados no Azure Blob Storage"
     }
     assert SECRET_ONE not in capsys.readouterr().out
+
+
+def test_azure_provider_authenticates_service_principal(monkeypatch):
+    captured = {}
+
+    class FakeClientSecretCredential:
+        def __init__(self, tenant_id, client_id, client_secret):
+            captured["tenant_id"] = tenant_id
+            captured["client_id"] = client_id
+            captured["client_secret"] = client_secret
+
+    class FakeBlobServiceClient:
+        def __init__(self, account_url, credential):
+            captured["account_url"] = account_url
+            captured["credential"] = credential
+
+    monkeypatch.setattr(
+        "providers.azure.blob_reader.ClientSecretCredential",
+        FakeClientSecretCredential,
+    )
+    monkeypatch.setattr(
+        "providers.azure.blob_reader.BlobServiceClient",
+        FakeBlobServiceClient,
+    )
+
+    reader = BlobReader()
+    assert reader.authenticate({
+        "tenant_id": TENANT_ONE,
+        "client_id": CLIENT_ONE,
+        "client_secret": SECRET_ONE,
+        "subscription_id": SUBSCRIPTION_ONE,
+        "storage_account_name": "nanoiaasstorage",
+    }) is True
+
+    assert captured["tenant_id"] == TENANT_ONE
+    assert captured["client_id"] == CLIENT_ONE
+    assert captured["client_secret"] == SECRET_ONE
+    assert captured["account_url"] == (
+        "https://nanoiaasstorage.blob.core.windows.net"
+    )
+
+
+@pytest.mark.parametrize(
+    ("provider", "reader_name"),
+    [
+        ("aws", "S3Reader"),
+        ("gcp", "GCSReader"),
+        ("azure", "BlobReader"),
+    ],
+)
+def test_cloud_validation_calls_remote_provider(
+    monkeypatch,
+    provider,
+    reader_name,
+):
+    calls = []
+
+    class SuccessfulReader:
+        def authenticate(self, credential):
+            calls.append(("auth", credential))
+            return True
+
+        def validate_credentials(self):
+            calls.append(("remote", None))
+            return True
+
+    monkeypatch.setattr(backend, reader_name, SuccessfulReader)
+    credential = {"secret": "fictitious-value"}
+
+    backend.validar_acesso_credencial_cloud(provider, credential)
+
+    assert calls == [("auth", credential), ("remote", None)]
+
+
+@pytest.mark.parametrize(
+    ("provider", "reader_name"),
+    [
+        ("aws", "S3Reader"),
+        ("gcp", "GCSReader"),
+        ("azure", "BlobReader"),
+    ],
+)
+def test_cloud_validation_failure_is_sanitized(
+    monkeypatch,
+    provider,
+    reader_name,
+):
+    class FailingReader:
+        def authenticate(self, _credential):
+            return True
+
+        def validate_credentials(self):
+            return False
+
+    monkeypatch.setattr(backend, reader_name, FailingReader)
+
+    with pytest.raises(HTTPException) as error:
+        backend.validar_acesso_credencial_cloud(
+            provider,
+            {"secret": SECRET_ONE},
+        )
+
+    assert error.value.status_code == 400
+    assert SECRET_ONE not in error.value.detail
+
+
+def test_validate_credentials_limits_azure_container_query():
+    calls = []
+
+    class FakeClient:
+        def list_containers(self, results_per_page):
+            calls.append(results_per_page)
+            return iter([])
+
+    reader = BlobReader()
+    reader.client = FakeClient()
+
+    assert reader.validate_credentials() is True
+    assert calls == [1]

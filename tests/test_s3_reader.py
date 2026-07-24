@@ -181,3 +181,23 @@ def test_get_metadata_sanitizes_client_error():
         "error": "Falha ao consultar metadados S3"
     }
     assert sensitive not in str(result)
+
+
+def test_validate_credentials_uses_aws_sts():
+    calls = []
+
+    class FakeSTS:
+        def get_caller_identity(self):
+            calls.append("get_caller_identity")
+            return {"Account": "000000000000"}
+
+    class FakeSession:
+        def client(self, service):
+            calls.append(service)
+            return FakeSTS()
+
+    reader = S3Reader()
+    reader.session = FakeSession()
+
+    assert reader.validate_credentials() is True
+    assert calls == ["sts", "get_caller_identity"]

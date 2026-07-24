@@ -20,6 +20,7 @@ dist/
 *.tfstate
 *.tfstate.*
 .terraform.lock.hcl
+!terraform/gcp/.terraform.lock.hcl
 crash.log
 crash.*.log
 override.tf

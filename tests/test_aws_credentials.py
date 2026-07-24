@@ -158,6 +158,11 @@ def fake_database(monkeypatch):
         return connection
 
     monkeypatch.setattr(backend, "conectar_db", connect)
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     backend._fernet = None
     return state, connections
 
@@ -287,6 +292,11 @@ def test_audit_contains_action_user_provider_and_no_credentials(fake_database):
 
 
 def test_audit_failure_rolls_back_replacement(monkeypatch):
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     state = {"credentials": {}, "audits": []}
     monkeypatch.setattr(backend, "conectar_db", lambda: FakeConnection(state))
     backend.cadastrar_credencial_aws(aws_request(), USER_ONE)
@@ -335,6 +345,11 @@ def test_schema_and_sql_contract_match_real_cloud_credentials_table():
 
 
 def test_audit_failure_rolls_back_creation(monkeypatch):
+    monkeypatch.setattr(
+        backend,
+        "validar_acesso_credencial_cloud",
+        lambda _provider, _credential: None,
+    )
     state = {"credentials": {}, "audits": []}
     failed_connection = FakeConnection(state, fail_audit=True)
     monkeypatch.setattr(backend, "conectar_db", lambda: failed_connection)
@@ -399,3 +414,63 @@ def test_all_aws_credential_routes_require_bearer_authentication():
     for method in ("get", "post", "put", "delete"):
         operation = schema["paths"]["/credenciais/aws"][method]
         assert operation["security"] == [{"OAuth2PasswordBearer": []}]
+
+
+def test_provider_rejects_failed_aws_authentication(monkeypatch):
+    class FailingS3Reader:
+        def authenticate(self, _profile):
+            return False
+
+    monkeypatch.setattr(
+        backend,
+        "buscar_credencial",
+        lambda _user_id, _provider: {
+            "access_key_id": ACCESS_KEY_ONE,
+            "secret_access_key": SECRET_KEY_ONE,
+        },
+    )
+    monkeypatch.setattr(backend, "S3Reader", FailingS3Reader)
+
+    user = {
+        "id": USER_ONE["id"],
+        "email": USER_ONE["email"],
+        "is_admin": False,
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Falha ao autenticar na AWS com as credenciais fornecidas",
+    ):
+        backend.obter_provider_autenticado("aws", user)
+
+
+def test_admin_fallback_rejects_failed_aws_authentication(monkeypatch):
+    class FailingS3Reader:
+        def __init__(self, **_kwargs):
+            pass
+
+        def authenticate(self, _profile):
+            return False
+
+    monkeypatch.setattr(
+        backend,
+        "buscar_credencial",
+        lambda _user_id, _provider: None,
+    )
+    monkeypatch.setattr(backend, "S3Reader", FailingS3Reader)
+    monkeypatch.setenv(
+        "NANO_IAAS_S3_ALLOWED_BUCKETS",
+        "nano-iaas-raw-dev",
+    )
+
+    user = {
+        "id": USER_ONE["id"],
+        "email": USER_ONE["email"],
+        "is_admin": True,
+    }
+
+    with pytest.raises(
+        ValueError,
+        match="Falha ao autenticar na AWS com as credenciais fornecidas",
+    ):
+        backend.obter_provider_autenticado("aws", user)
