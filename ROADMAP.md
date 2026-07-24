@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
 **Última atualização:** 23/07/2026
-**Percentual total formal do projeto:** **40%**
+**Percentual total formal do projeto:** **50%**
 
 ## Governança
 
@@ -23,7 +23,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
 | 4 | Telas essenciais | `[x]` | 100% da macroetapa (10% do projeto) | Os seis blocos foram implantados, validados e concluídos formalmente. |
-| 5 | Restrições S3 | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
+| 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
 | 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 8 | Observabilidade e backup | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -92,6 +92,50 @@ A imagem oficial Alpine foi fixada por digest e publicada de forma imutável no 
 
 O Terraform apply criou uma task definition e atualizou o serviço sem destruições. O ECS alcançou rollout `COMPLETED` na revisão `nano-iaas-backend-dev:12`, com uma tarefa em execução, nenhum pending e target saudável. Os smoke tests públicos e autenticados confirmaram HTTP 200 para documentação, OpenAPI, login, perfil e opções de plano; HTTP 401 sem token; HTTP 403 para auditoria por usuário comum; HTTP 422 para requisição inválida antes de persistência; e ausência de segredos nas respostas. Nenhum plano, PIX ou dado persistente foi alterado.
 
+## Macroetapa 5 — Restrições S3 `[x]`
+
+A macroetapa 5 foi concluída formalmente após auditoria, implementação em worktree isolado, revisão, testes, duas PRs, implantação controlada e validação em produção.
+
+Entregas concluídas:
+
+- PR [#19](https://github.com/Liucera/nano-iaas/pull/19): validação de caminhos S3, prefixo obrigatório `dados/`, allowlist de buckets, sanitização de erros AWS e IAM de mínimo privilégio;
+- PR [#20](https://github.com/Liucera/nano-iaas/pull/20): provisionamento dos três buckets oficiais com controles de segurança;
+- remoção de `s3:ListAllMyBuckets`, recursos `*` e qualquer permissão `PutObject` ou `DeleteObject`;
+- `ListBucket` limitado a `dados/` e `GetObject` limitado a `dados/*`;
+- bloqueio de buckets não oficiais e de caminhos fora do prefixo permitido.
+
+Referência operacional:
+
+- `main`: `07a8e9a39b2cec0a3eb2249219e46ab07f8450cc`;
+- ECS task definition: `nano-iaas-backend-dev:13`;
+- imagem: `nano-iaas-backend-dev@sha256:34015677fc5e7489717a696561dfccd13c6ad246f8a4c7681543335bb4de9c91`;
+- manifest `linux/amd64`: `sha256:541bdb75a69d7f2f88c54972c4e259ae6948fea8c97e0d22ea128f56c2535252`;
+- scan ECR concluído sem findings;
+- 271 testes aprovados, com três warnings preexistentes.
+
+Controles implantados nos buckets `nano-iaas-raw-dev`, `nano-iaas-processed-dev` e `nano-iaas-archive-dev`:
+
+- bloqueio público integral;
+- criptografia AES256;
+- versionamento habilitado;
+- propriedade `BucketOwnerEnforced`;
+- proteção Terraform `prevent_destroy`;
+- leitura sistêmica restrita ao prefixo `dados/`.
+
+O apply controlado concluiu `16 added, 2 changed, 1 destroyed`, sendo a destruição exclusivamente a substituição esperada da task definition ECS. O state oficial preservou a lineage `6ce1818b-18d2-2a9e-afbd-8640951622e0` e avançou para o serial `122`. Foi criado backup exclusivo anterior ao apply. O plano posterior retornou `No changes`, e o hash do state permaneceu inalterado durante essa verificação.
+
+Validações em produção:
+
+- rollout ECS `COMPLETED`, desired 1, running 1 e pending 0;
+- target do ALB saudável;
+- login e `GET /me` com usuário comum responderam HTTP 200;
+- `GET /audit` com usuário comum respondeu HTTP 403;
+- simulador IAM permitiu `ListBucket` e `GetObject` somente em `dados/`;
+- outros prefixos, bucket não oficial, `PutObject` e `DeleteObject` resultaram em `implicitDeny`;
+- nenhum plano, PIX, credencial cloud ou dado persistente foi alterado.
+
+A senha da conta administrativa permanece indisponível como pendência operacional preexistente. Não houve redefinição de senha nem alteração de autenticação, banco ou secrets nesta macroetapa. O smoke administrativo foi substituído por testes automatizados, smoke com usuário comum e validação direta da política IAM efetiva. O bucket legado `nano-iaas-teste` permaneceu intocado e fora da allowlist oficial.
+
 ## Repositórios oficiais
 
 As fontes oficiais foram verificadas pelos remotos e responsabilidades publicadas:
@@ -107,7 +151,6 @@ As fontes oficiais foram verificadas pelos remotos e responsabilidades publicada
 
 As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter sua implementação antecipada:
 
-5. Restrições S3.
 6. Validação AWS/GCP/Azure.
 7. Segurança e auditoria.
 8. Observabilidade e backup.
@@ -118,18 +161,18 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 
 As 10 macroetapas possuem o mesmo peso de 10%:
 
-- 4 macroetapas concluídas × 10% = 40%;
-- 6 dos 6 blocos da macroetapa 4 concluídos = 10%;
-- macroetapas 5 a 10 não iniciadas = 0%.
+- 5 macroetapas concluídas × 10% = 50%;
+- macroetapa 5 concluída, implantada e validada = 10%;
+- macroetapas 6 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 40%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 50%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Iniciar formalmente a Macroetapa 5 — Restrições S3.
-2. Auditar as permissões, políticas e fluxos S3 existentes antes de qualquer alteração.
-3. Definir critérios verificáveis de mínimo privilégio e preservação do comportamento read-only.
-4. Implementar mudanças somente em worktree isolado, com testes e revisão antes de Terraform ou deploy.
-5. Não antecipar a Macroetapa 6 antes da conclusão formal da Macroetapa 5.
+1. Iniciar formalmente a Macroetapa 6 — Validação AWS/GCP/Azure.
+2. Auditar os critérios e credenciais necessários para validações reais dos três providers.
+3. Preservar o comportamento read-only e impedir exposição de credenciais ou erros operacionais.
+4. Implementar mudanças somente em worktree isolado, com testes e revisão antes de qualquer alteração cloud.
+5. Não antecipar a Macroetapa 7 antes da conclusão formal da Macroetapa 6.
