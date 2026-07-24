@@ -468,3 +468,30 @@ def test_frontend_handles_429_and_retry_after():
 
     assert "e.status === 429" in html
     assert "Retry-After" in html
+
+
+def test_health_check_is_public_and_has_stable_contract():
+    assert backend.health_check() == {
+        "ok": True,
+        "service": "nano-iaas-backend",
+    }
+
+    operation = backend.app.openapi()["paths"]["/health"]["get"]
+    assert operation.get("security", []) == []
+
+
+def test_health_check_is_public_and_alb_requires_http_200():
+    terraform_source = (
+        Path(__file__).parents[1] / "terraform/aws-infra/main.tf"
+    ).read_text()
+
+    target_group = terraform_source[
+        terraform_source.index(
+            'resource "aws_lb_target_group" "nano_iaas_backend"'
+        ):
+        terraform_source.index('resource "aws_acm_certificate" "api"')
+    ]
+
+    assert 'path                = "/health"' in target_group
+    assert 'matcher             = "200"' in target_group
+    assert 'matcher             = "200-499"' not in target_group

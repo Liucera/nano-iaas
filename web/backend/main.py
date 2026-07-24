@@ -1643,6 +1643,11 @@ def cadastro(dados: CadastroRequest):
     registrar_acesso(novo["email"], "CADASTRO", "-", "-", "plano inicial gratuito")
     return {"access_token": token, "token_type": "bearer"}
 
+@app.get("/health")
+def health_check():
+    return {"ok": True, "service": "nano-iaas-backend"}
+
+
 @app.post("/login", response_model=Token)
 def login(request: Request, form: OAuth2PasswordRequestForm = Depends()):
     client_ip = resolver_ip_cliente(request)

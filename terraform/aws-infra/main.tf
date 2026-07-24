@@ -452,8 +452,8 @@ resource "aws_lb_target_group" "nano_iaas_backend" {
   target_type = "ip"
 
   health_check {
-    path                = "/login"
-    matcher             = "200-499"
+    path                = "/health"
+    matcher             = "200"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
