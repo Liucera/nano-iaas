@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
-**Última atualização:** 23/07/2026
-**Percentual total formal do projeto:** **50%**
+**Última atualização:** 24/07/2026
+**Percentual total formal do projeto:** **60%**
 
 ## Governança
 
@@ -24,7 +24,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
 | 4 | Telas essenciais | `[x]` | 100% da macroetapa (10% do projeto) | Os seis blocos foram implantados, validados e concluídos formalmente. |
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
-| 6 | Validação AWS/GCP/Azure | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
+| 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
 | 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 8 | Observabilidade e backup | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -136,6 +136,33 @@ Validações em produção:
 
 A senha da conta administrativa permanece indisponível como pendência operacional preexistente. Não houve redefinição de senha nem alteração de autenticação, banco ou secrets nesta macroetapa. O smoke administrativo foi substituído por testes automatizados, smoke com usuário comum e validação direta da política IAM efetiva. O bucket legado `nano-iaas-teste` permaneceu intocado e fora da allowlist oficial.
 
+## Macroetapa 6 — Validação AWS/GCP/Azure `[x]`
+
+A Macroetapa 6 foi concluída formalmente em 24/07/2026, com 8/8 blocos:
+
+1. Preparação e auditoria.
+2. Validação real da AWS.
+3. Validação real do GCP.
+4. Validação real do Azure.
+5. Validação remota de credenciais antes da persistência.
+6. Regressão e segurança multi-cloud.
+7. Deploy e smoke em produção.
+8. Documentação e encerramento formal.
+
+Evidências de conclusão:
+
+- PRs #22, #23 e #24 integradas;
+- 289 testes aprovados;
+- CI aprovado em Python 3.10, 3.11 e 3.12;
+- GitGuardian aprovado;
+- ECS `nano-iaas-backend-dev:15`, com rollout `COMPLETED`;
+- imagem `sha256:e1f76e374bc5194f7071188b8c953d6159905836c1648ce054aebe3b3f5a536e`;
+- health check `GET /health`, matcher HTTP `200`;
+- states oficiais AWS e GCP preservados e auditados;
+- planos pós-deploy sem diferenças.
+
+O registro técnico completo está em [`docs/ETAPA6-ENCERRAMENTO.md`](docs/ETAPA6-ENCERRAMENTO.md).
+
 ## Repositórios oficiais
 
 As fontes oficiais foram verificadas pelos remotos e responsabilidades publicadas:
@@ -151,28 +178,29 @@ As fontes oficiais foram verificadas pelos remotos e responsabilidades publicada
 
 As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter sua implementação antecipada:
 
-6. Validação AWS/GCP/Azure.
 7. Segurança e auditoria.
 8. Observabilidade e backup.
 9. Deploy final e smoke tests.
 10. Checklist de lançamento e comunicação.
 
+A Macroetapa 7 possui apenas o objetivo nominal “Segurança e auditoria”. Seus blocos e critérios específicos ainda não estão definidos neste roadmap; nenhuma implementação técnica deve começar antes dessa definição formal.
+
 ## Método de cálculo
 
 As 10 macroetapas possuem o mesmo peso de 10%:
 
-- 5 macroetapas concluídas × 10% = 50%;
-- macroetapa 5 concluída, implantada e validada = 10%;
-- macroetapas 6 a 10 não iniciadas = 0%.
+- 6 macroetapas concluídas × 10% = 60%;
+- macroetapa 6 concluída, implantada e validada = 10%;
+- macroetapas 7 a 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 50%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 60%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Iniciar formalmente a Macroetapa 6 — Validação AWS/GCP/Azure.
-2. Auditar os critérios e credenciais necessários para validações reais dos três providers.
-3. Preservar o comportamento read-only e impedir exposição de credenciais ou erros operacionais.
+1. Planejar formalmente a Macroetapa 7 — Segurança e auditoria.
+2. Definir e aprovar seus blocos e critérios de conclusão antes de qualquer implementação técnica.
+3. Preservar o comportamento read-only e impedir exposição de credenciais, segredos ou erros operacionais.
 4. Implementar mudanças somente em worktree isolado, com testes e revisão antes de qualquer alteração cloud.
-5. Não antecipar a Macroetapa 7 antes da conclusão formal da Macroetapa 6.
+5. Não antecipar a Macroetapa 8 antes da conclusão formal da Macroetapa 7.

@@ -21,19 +21,24 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-### Estado oficial em 23/07/2026
+### Estado oficial em 24/07/2026
 
-- Macroetapas 1 a 5: concluídas;
-- percentual total formal do projeto: **50%**;
-- Macroetapa 5 — Restrições S3: concluída em produção;
-- PRs [#19](https://github.com/Liucera/nano-iaas/pull/19) e [#20](https://github.com/Liucera/nano-iaas/pull/20) integradas;
-- leitura AWS limitada aos três buckets oficiais e ao prefixo `dados/`;
-- IAM sem `ListAllMyBuckets`, `PutObject`, `DeleteObject` ou recursos curingas;
-- erros AWS sanitizados e allowlist sistêmica configurada no ECS;
-- três buckets oficiais com bloqueio público, AES256, versionamento e `BucketOwnerEnforced`;
-- 271 testes aprovados, com três warnings preexistentes.
+- Macroetapas 1 a 6: concluídas;
+- percentual total formal do projeto: **60%**;
+- Macroetapa 6 — Validação AWS/GCP/Azure: concluída, com 8/8 blocos;
+- PR #22: providers AWS, GCP e Azure;
+- PR #23: health check profissional;
+- PR #24: documentação e encerramento formal da Etapa 6;
+- Dashboard/API integrados aos providers reais AWS, GCP e Azure;
+- credenciais validadas remotamente antes da persistência;
+- segredos armazenados cifrados e respostas mascaradas;
+- 289 testes aprovados;
+- CI aprovado em Python 3.10, 3.11 e 3.12;
+- GitGuardian aprovado.
 
-A referência operacional vigente é a `main` no commit `07a8e9a39b2cec0a3eb2249219e46ab07f8450cc`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:13`, usando a imagem imutável `nano-iaas-backend-dev@sha256:34015677fc5e7489717a696561dfccd13c6ad246f8a4c7681543335bb4de9c91`. O rollout está concluído, com uma tarefa em execução, nenhum pending e target saudável.
+A referência operacional vigente é a `main` no commit `1ef24a1962454b61a5b9fdc1ef65cc5a4aed426a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:15`, usando a imagem imutável `sha256:e1f76e374bc5194f7071188b8c953d6159905836c1648ce054aebe3b3f5a536e`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e health check em `GET /health` com matcher HTTP `200`.
+
+Os states oficiais AWS e GCP foram preservados e auditados. Os planos pós-deploy não apresentam diferenças. A próxima macroetapa prevista no roadmap é a Macroetapa 7 — Segurança e auditoria; seus blocos e critérios específicos ainda não estão definidos.
 
 ### Planos e fluxo comercial vigente
 
