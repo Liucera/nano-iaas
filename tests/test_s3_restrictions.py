@@ -42,7 +42,9 @@ def test_ecs_s3_policy_uses_least_privilege():
     assert '"s3:GetBucketLocation"' in policy
     assert '"s3:prefix"' in policy
     assert '"dados/*"' in policy
-    assert '"arn:aws:s3:::${bucket}/dados/*"' in policy
+    assert "local.nano_iaas_s3_allowed_bucket_arns" in policy
+    assert '"${bucket_arn}/dados/*"' in policy
+    assert '"arn:aws:s3:::' not in policy
 
 
 def test_ecs_configures_only_official_s3_buckets():
@@ -50,7 +52,38 @@ def test_ecs_configures_only_official_s3_buckets():
         ROOT / "terraform/aws-infra/main.tf"
     ).read_text(encoding="utf-8")
 
-    assert '"nano-iaas-raw-${var.environment}"' in source
-    assert '"nano-iaas-processed-${var.environment}"' in source
-    assert '"nano-iaas-archive-${var.environment}"' in source
+    assert '"raw"' in source
+    assert '"processed"' in source
+    assert '"archive"' in source
+    assert '"nano-iaas-${each.key}-${var.environment}"' in source
+    assert "aws_s3_bucket.nano_iaas_data[role].bucket" in source
     assert '"NANO_IAAS_S3_ALLOWED_BUCKETS"' in source
+
+def test_official_s3_buckets_have_mandatory_security_controls():
+    source = (
+        ROOT / "terraform/aws-infra/main.tf"
+    ).read_text(encoding="utf-8")
+
+    required_resources = [
+        'resource "aws_s3_bucket" "nano_iaas_data"',
+        'resource "aws_s3_bucket_public_access_block" "nano_iaas_data"',
+        'resource "aws_s3_bucket_ownership_controls" "nano_iaas_data"',
+        'resource "aws_s3_bucket_versioning" "nano_iaas_data"',
+    ]
+
+    for resource in required_resources:
+        assert resource in source
+
+    assert (
+        '"aws_s3_bucket_server_side_encryption_configuration" '
+        '"nano_iaas_data"'
+    ) in source
+
+    assert "prevent_destroy = true" in source
+    assert "block_public_acls       = true" in source
+    assert "block_public_policy     = true" in source
+    assert "ignore_public_acls      = true" in source
+    assert "restrict_public_buckets = true" in source
+    assert 'object_ownership = "BucketOwnerEnforced"' in source
+    assert 'sse_algorithm = "AES256"' in source
+    assert 'status = "Enabled"' in source

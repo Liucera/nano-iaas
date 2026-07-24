@@ -635,11 +635,72 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
 }
 
 locals {
+  nano_iaas_s3_bucket_roles = ["raw", "processed", "archive"]
+
   nano_iaas_s3_allowed_buckets = [
-    "nano-iaas-raw-${var.environment}",
-    "nano-iaas-processed-${var.environment}",
-    "nano-iaas-archive-${var.environment}"
+    for role in local.nano_iaas_s3_bucket_roles :
+    aws_s3_bucket.nano_iaas_data[role].bucket
   ]
+
+  nano_iaas_s3_allowed_bucket_arns = [
+    for role in local.nano_iaas_s3_bucket_roles :
+    aws_s3_bucket.nano_iaas_data[role].arn
+  ]
+}
+
+resource "aws_s3_bucket" "nano_iaas_data" {
+  for_each = toset(local.nano_iaas_s3_bucket_roles)
+  bucket   = "nano-iaas-${each.key}-${var.environment}"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  tags = {
+    Project     = "nano-iaas"
+    Environment = var.environment
+    DataRole    = each.key
+    ManagedBy   = "terraform"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "nano_iaas_data" {
+  for_each = toset(local.nano_iaas_s3_bucket_roles)
+  bucket   = aws_s3_bucket.nano_iaas_data[each.key].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_ownership_controls" "nano_iaas_data" {
+  for_each = toset(local.nano_iaas_s3_bucket_roles)
+  bucket   = aws_s3_bucket.nano_iaas_data[each.key].id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "nano_iaas_data" {
+  for_each = toset(local.nano_iaas_s3_bucket_roles)
+  bucket   = aws_s3_bucket.nano_iaas_data[each.key].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "nano_iaas_data" {
+  for_each = toset(local.nano_iaas_s3_bucket_roles)
+  bucket   = aws_s3_bucket.nano_iaas_data[each.key].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
 # Permissao de leitura no S3 para a role da task, equivalente ao usuario nano-iaas-reader
@@ -652,22 +713,16 @@ resource "aws_iam_role_policy" "ecs_task_s3_read" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "BucketLocation"
-        Effect = "Allow"
-        Action = ["s3:GetBucketLocation"]
-        Resource = [
-          for bucket in local.nano_iaas_s3_allowed_buckets :
-          "arn:aws:s3:::${bucket}"
-        ]
+        Sid      = "BucketLocation"
+        Effect   = "Allow"
+        Action   = ["s3:GetBucketLocation"]
+        Resource = local.nano_iaas_s3_allowed_bucket_arns
       },
       {
-        Sid    = "ListDadosPrefix"
-        Effect = "Allow"
-        Action = ["s3:ListBucket"]
-        Resource = [
-          for bucket in local.nano_iaas_s3_allowed_buckets :
-          "arn:aws:s3:::${bucket}"
-        ]
+        Sid      = "ListDadosPrefix"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = local.nano_iaas_s3_allowed_bucket_arns
         Condition = {
           StringLike = {
             "s3:prefix" = [
@@ -683,8 +738,8 @@ resource "aws_iam_role_policy" "ecs_task_s3_read" {
         Effect = "Allow"
         Action = ["s3:GetObject"]
         Resource = [
-          for bucket in local.nano_iaas_s3_allowed_buckets :
-          "arn:aws:s3:::${bucket}/dados/*"
+          for bucket_arn in local.nano_iaas_s3_allowed_bucket_arns :
+          "${bucket_arn}/dados/*"
         ]
       }
     ]
