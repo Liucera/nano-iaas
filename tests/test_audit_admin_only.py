@@ -70,12 +70,36 @@ def test_common_user_does_not_query_audit_logs(monkeypatch):
 
 def test_admin_receives_audit_logs(monkeypatch):
     expected_logs = [{"acao": "LOGIN", "provider": "-", "recurso": "-"}]
-    calls = []
+    lookup_calls = []
+    audit_calls = []
+
     monkeypatch.setattr(
         backend,
         "buscar_logs_auditoria",
-        lambda limite=50: calls.append(limite) or expected_logs,
+        lambda limite=50, deslocamento=0: (
+            lookup_calls.append((limite, deslocamento)) or expected_logs
+        ),
+    )
+    monkeypatch.setattr(
+        backend,
+        "registrar_acesso",
+        lambda *args, **kwargs: audit_calls.append((args, kwargs)),
     )
 
-    assert backend.ver_logs(ADMIN_USER) == {"logs": expected_logs}
-    assert calls == [50]
+    assert backend.ver_logs(
+        ADMIN_USER,
+        limite=25,
+        deslocamento=10,
+    ) == {
+        "logs": expected_logs,
+        "limite": 25,
+        "deslocamento": 10,
+    }
+    assert lookup_calls == [(25, 10)]
+    assert audit_calls == [(
+        (ADMIN_USER["email"], "AUDITORIA_CONSULTADA"),
+        {
+            "recurso": "/audit",
+            "detalhes": "limite=25;deslocamento=10",
+        },
+    )]

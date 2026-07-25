@@ -4,6 +4,7 @@ import json
 import hmac
 import ipaddress
 import math
+import re
 import threading
 from hashlib import sha256
 from time import monotonic
@@ -18,7 +19,7 @@ import psycopg2.extras
 from botocore.exceptions import ClientError
 from azure.core.exceptions import AzureError
 
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Query, Request, status
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -258,6 +259,12 @@ def migrar_admin_inicial():
                 """,
                 (admin_email, senha_hash),
             )
+            inserir_evento_auditoria(
+                cur,
+                admin_email,
+                "ADMIN_INICIAL_CRIADO",
+                recurso="bootstrap",
+            )
         conn.commit()
     finally:
         conn.close()
@@ -317,12 +324,11 @@ def atualizar_senha_usuario(user_id: int, novo_hash: str, usuario_email: str) ->
             conn.rollback()
             return False
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (usuario_email, "SENHA", "-", "-", "senha alterada"),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                "SENHA",
+                detalhes="senha alterada",
             )
         conn.commit()
         return True
@@ -413,16 +419,12 @@ def atualizar_plano_proprio(user_id: int, plano: str):
                 )
                 usuario = cur.fetchone()
 
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
-                VALUES (%s, %s, '-', 'plano', %s)
-                """,
-                (
-                    usuario["email"],
-                    "PLANO_ATUALIZADO" if alterado else "PLANO_MANTIDO",
-                    f"plano_anterior={plano_anterior};plano_novo={plano}",
-                ),
+            inserir_evento_auditoria(
+                cur,
+                usuario["email"],
+                "PLANO_ATUALIZADO" if alterado else "PLANO_MANTIDO",
+                recurso="plano",
+                detalhes=f"plano_anterior={plano_anterior};plano_novo={plano}",
             )
         conn.commit()
         return {
@@ -483,12 +485,12 @@ def criar_solicitacao_pix(user_id: int, plano: str, comprovante: str = ""):
                 (user_id, usuario["email"], plano, valor_centavos, comprovante),
             )
             solicitacao = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
-                VALUES (%s, 'PIX_SOLICITADO', '-', 'plano', %s)
-                """,
-                (usuario["email"], f"plano_solicitado={plano}"),
+            inserir_evento_auditoria(
+                cur,
+                usuario["email"],
+                "PIX_SOLICITADO",
+                recurso="plano",
+                detalhes=f"plano_solicitado={plano}",
             )
         conn.commit()
         return "ok", solicitacao
@@ -589,18 +591,15 @@ def aprovar_solicitacao_pix(solicitacao_id: int, admin_email: str):
                 (solicitacao["plano"], solicitacao["user_id"]),
             )
             usuario = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
-                VALUES (%s, 'PIX_APROVADO', '-', %s, %s)
-                """,
-                (
-                    admin_email,
-                    str(solicitacao_id),
-                    (
-                        f"usuario_id={solicitacao['user_id']};"
-                        f"plano_anterior={plano_anterior};plano_novo={solicitacao['plano']}"
-                    ),
+            inserir_evento_auditoria(
+                cur,
+                admin_email,
+                "PIX_APROVADO",
+                recurso=str(solicitacao_id),
+                detalhes=(
+                    f"usuario_id={solicitacao['user_id']};"
+                    f"plano_anterior={plano_anterior};"
+                    f"plano_novo={solicitacao['plano']}"
                 ),
             )
         conn.commit()
@@ -748,12 +747,11 @@ def salvar_credencial_aws_usuario(
                 acao = "CREDENCIAL_CADASTRADA"
 
             linha = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, %s, 'aws')
-                """,
-                (usuario_email, acao),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                acao,
+                provider="aws",
             )
         conn.commit()
         return "ok", _metadata_credencial_aws(linha)
@@ -786,12 +784,11 @@ def excluir_credencial_aws_usuario(user_id: int, usuario_email: str) -> bool:
                 """,
                 (user_id,),
             )
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'aws')
-                """,
-                (usuario_email,),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                "CREDENCIAL_EXCLUIDA",
+                provider="aws",
             )
         conn.commit()
         return True
@@ -908,12 +905,11 @@ def salvar_credencial_gcp_usuario(
                 acao = "CREDENCIAL_CADASTRADA"
 
             linha = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, %s, 'gcp')
-                """,
-                (usuario_email, acao),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                acao,
+                provider="gcp",
             )
         conn.commit()
         return "ok", _metadata_credencial_gcp(linha)
@@ -947,12 +943,11 @@ def excluir_credencial_gcp_usuario(user_id: int, usuario_email: str) -> bool:
                 """,
                 (user_id,),
             )
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'gcp')
-                """,
-                (usuario_email,),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                "CREDENCIAL_EXCLUIDA",
+                provider="gcp",
             )
         conn.commit()
         return True
@@ -1057,12 +1052,11 @@ def salvar_credencial_azure_usuario(
                 acao = "CREDENCIAL_CADASTRADA"
 
             linha = cur.fetchone()
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, %s, 'azure')
-                """,
-                (usuario_email, acao),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                acao,
+                provider="azure",
             )
         conn.commit()
         return "ok", _metadata_credencial_azure(linha)
@@ -1096,12 +1090,11 @@ def excluir_credencial_azure_usuario(user_id: int, usuario_email: str) -> bool:
                 """,
                 (user_id,),
             )
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider)
-                VALUES (%s, 'CREDENCIAL_EXCLUIDA', 'azure')
-                """,
-                (usuario_email,),
+            inserir_evento_auditoria(
+                cur,
+                usuario_email,
+                "CREDENCIAL_EXCLUIDA",
+                provider="azure",
             )
         conn.commit()
         return True
@@ -1112,48 +1105,143 @@ def excluir_credencial_azure_usuario(user_id: int, usuario_email: str) -> bool:
         conn.close()
 
 # ── Auditoria ─────────────────────────────────────────────────
-def registrar_acesso(usuario: str, acao: str, provider: str, recurso: str, detalhes: str = ""):
+AUDIT_TEXT_MAX_LENGTH = 500
+AUDIT_SENSITIVE_PATTERNS = (
+    re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
+    re.compile(r"\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b"),
+    re.compile(
+        r"(?i)\b(password|senha|secret|token|api[_-]?key|access[_-]?key|"
+        r"secret[_-]?access[_-]?key|client[_-]?secret|connection[_-]?string|"
+        r"service[_-]?account[_-]?json)\s*[:=]\s*[^;,\s]+"
+    ),
+    re.compile(
+        r"-----BEGIN [^-]*PRIVATE KEY-----.*?"
+        r"-----END [^-]*PRIVATE KEY-----",
+        re.DOTALL,
+    ),
+)
+
+
+def normalizar_campo_auditoria(valor, fallback="-", limite=AUDIT_TEXT_MAX_LENGTH):
+    texto = "" if valor is None else str(valor)
+    texto = re.sub(r"[\r\n\t]+", " ", texto).strip()
+    return (texto or fallback)[:limite]
+
+
+def sanitizar_detalhes_auditoria(detalhes) -> str:
+    texto = normalizar_campo_auditoria(detalhes, fallback="")
+    for pattern in AUDIT_SENSITIVE_PATTERNS:
+        texto = pattern.sub("[REDACTED]", texto)
+    return texto[:AUDIT_TEXT_MAX_LENGTH]
+
+
+def inserir_evento_auditoria(
+    cur,
+    usuario,
+    acao,
+    provider="-",
+    recurso="-",
+    detalhes="",
+):
+    usuario_normalizado = normalizar_campo_auditoria(usuario, limite=254)
+    acao_normalizada = normalizar_campo_auditoria(acao, limite=80)
+    provider_normalizado = normalizar_campo_auditoria(provider, limite=20)
+    recurso_normalizado = normalizar_campo_auditoria(recurso, limite=500)
+    detalhes_sanitizados = sanitizar_detalhes_auditoria(detalhes)
+
+    if (
+        provider_normalizado in PROVIDERS_VALIDOS
+        and recurso_normalizado == "-"
+        and not detalhes_sanitizados
+    ):
+        cur.execute(
+            f"""
+            INSERT INTO audit_log (usuario, acao, provider)
+            VALUES (%s, %s, '{provider_normalizado}')
+            """,
+            (usuario_normalizado, acao_normalizada),
+        )
+        return
+
+    cur.execute(
+        """
+        INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (
+            usuario_normalizado,
+            acao_normalizada,
+            provider_normalizado,
+            recurso_normalizado,
+            detalhes_sanitizados,
+        ),
+    )
+
+def registrar_acesso(
+    usuario: str,
+    acao: str,
+    provider: str = "-",
+    recurso: str = "-",
+    detalhes: str = "",
+):
     conn = conectar_db()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO audit_log (usuario, acao, provider, recurso, detalhes)
-                VALUES (%s, %s, %s, %s, %s)
-                """,
-                (usuario, acao, provider, recurso, detalhes),
+            inserir_evento_auditoria(
+                cur,
+                usuario,
+                acao,
+                provider=provider,
+                recurso=recurso,
+                detalhes=detalhes,
             )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
-def buscar_logs_auditoria(limite: int = 50):
+
+def buscar_logs_auditoria(limite: int = 50, deslocamento: int = 0):
+    if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= 100:
+        raise ValueError("limite de auditoria deve estar entre 1 e 100")
+    if (
+        isinstance(deslocamento, bool)
+        or not isinstance(deslocamento, int)
+        or deslocamento < 0
+    ):
+        raise ValueError("deslocamento de auditoria deve ser maior ou igual a zero")
+
     conn = conectar_db()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT timestamp, usuario, acao, provider, recurso, detalhes
+                SELECT id, timestamp, usuario, acao, provider, recurso, detalhes
                 FROM audit_log
-                ORDER BY timestamp DESC
-                LIMIT %s
+                ORDER BY timestamp DESC, id DESC
+                LIMIT %s OFFSET %s
                 """,
-                (limite,),
+                (limite, deslocamento),
             )
             linhas = cur.fetchall()
-        logs = []
-        for linha in linhas:
-            logs.append({
-                "timestamp": linha["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+
+        return [
+            {
+                "id": linha["id"],
+                "timestamp": linha["timestamp"].isoformat(),
                 "usuario": linha["usuario"],
                 "acao": linha["acao"],
                 "provider": linha["provider"],
                 "recurso": linha["recurso"] or "-",
                 "detalhes": linha["detalhes"] or "",
-            })
-        return logs
+            }
+            for linha in linhas
+        ]
     finally:
         conn.close()
+
 
 # ── Ferramentas de seguranca ────────────────────────────────
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -2221,10 +2309,27 @@ def read_resource(provider: str, bucket: str, usuario=Depends(usuario_atual)):
         responder_erro_operacional(e)
 
 @app.get("/audit")
-def ver_logs(usuario=Depends(usuario_atual)):
+def ver_logs(
+    usuario=Depends(usuario_atual),
+    limite: int = Query(default=50, ge=1, le=100),
+    deslocamento: int = Query(default=0, ge=0),
+):
     exigir_admin(usuario)
     try:
-        logs = buscar_logs_auditoria(limite=50)
-        return {"logs": logs}
+        logs = buscar_logs_auditoria(
+            limite=limite,
+            deslocamento=deslocamento,
+        )
+        registrar_acesso(
+            usuario["email"],
+            "AUDITORIA_CONSULTADA",
+            recurso="/audit",
+            detalhes=f"limite={limite};deslocamento={deslocamento}",
+        )
+        return {
+            "logs": logs,
+            "limite": limite,
+            "deslocamento": deslocamento,
+        }
     except Exception as e:
         responder_erro_operacional(e)
