@@ -21,26 +21,30 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-### Estado oficial em 24/07/2026
+### Estado oficial em 25/07/2026
 
-- Macroetapas 1 a 6: concluídas;
-- percentual total formal do projeto: **60%**;
-- Macroetapa 6 — Validação AWS/GCP/Azure: concluída, com 8/8 blocos;
-- PR #22: providers AWS, GCP e Azure;
-- PR #23: health check profissional;
-- PR #24: documentação e encerramento formal da Etapa 6;
-- Dashboard/API integrados aos providers reais AWS, GCP e Azure;
-- credenciais validadas remotamente antes da persistência;
-- segredos armazenados cifrados e respostas mascaradas;
-- 289 testes aprovados;
+- Macroetapas 1 a 7: concluídas;
+- percentual total formal do projeto: **70%**;
+- Macroetapa 7 — Segurança e auditoria: concluída, com 8/8 blocos;
+- PR #26: reforço de segurança e auditoria;
+- headers HTTP de segurança implantados;
+- CORS restrito às origens, métodos e headers autorizados;
+- JWT fortalecido e bootstrap administrativo sem credencial fixa;
+- auditoria centralizada, sanitizada e restrita ao administrador;
+- logs de execução removidos do versionamento;
+- dependências auditadas;
+- 302 testes aprovados localmente;
 - CI aprovado em Python 3.10, 3.11 e 3.12;
 - GitGuardian aprovado.
 
-A referência operacional vigente é a `main` no commit `1ef24a1962454b61a5b9fdc1ef65cc5a4aed426a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:15`, usando a imagem imutável `sha256:e1f76e374bc5194f7071188b8c953d6159905836c1648ce054aebe3b3f5a536e`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e health check em `GET /health` com matcher HTTP `200`.
+A referência operacional vigente é a `main` no commit `6540648c28a5f72afa2d28d0c591282dca26ba9a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:16`, usando a imagem imutável `sha256:51eb6ba7b5de4c10ed4c2a3c98444e1d49d8c0e0d4d8ba40058ea1889404ec10`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e target saudável.
 
-Os states oficiais AWS e GCP foram preservados e auditados. Os planos pós-deploy não apresentam diferenças.
+O health check `GET /health`, Swagger e OpenAPI responderam HTTP 200. O endpoint `/audit` sem autenticação respondeu HTTP 401. Os headers de segurança foram confirmados em produção. A origem oficial do aplicativo foi permitida pelo CORS e uma origem não autorizada foi bloqueada.
 
-A Macroetapa 7 — Segurança e auditoria foi iniciada formalmente em 25/07/2026, com oito blocos definidos no roadmap. O progresso geral permanece em 60% até a conclusão de entregas funcionais da etapa.
+Os states oficiais AWS e GCP foram preservados e auditados. O plano Terraform AWS posterior ao deploy retornou `No changes`.
+
+- AWS: lineage `6ce1818b-18d2-2a9e-afbd-8640951622e0`, serial `136`, SHA-256 `7fac915f32af222dd2259de1a9ba605f78ed3e590d5f178924db76b8270d68f8`;
+- GCP: lineage `cc3c79fb-daae-5930-da06-9def95bd9114`, serial `13`, SHA-256 `bd79f583fcf8660f3c761eb10e506b0b1304937f1a874a0b3b27b378a48794da`.
 
 ### Planos e fluxo comercial vigente
 
