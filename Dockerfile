@@ -3,7 +3,8 @@ FROM python:3.12-alpine@sha256:6d43704baacd1bfbe7c295d7f13079d5d8104ed3356887313
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip==26.1.2 \
+    && python -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 

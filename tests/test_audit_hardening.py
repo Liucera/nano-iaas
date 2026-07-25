@@ -20,14 +20,15 @@ class FakeCursor:
 
 
 def test_audit_details_are_sanitized_and_limited():
+    fake_jwt = ".".join(("eyJabc", "def", "ghi"))
     raw = (
-        "token=eyJabc.def.ghi;"
+        f"token={fake_jwt};"
         "secret_access_key=super-secret;"
         "linha\nnova"
     )
     sanitized = backend.sanitizar_detalhes_auditoria(raw)
 
-    assert "eyJabc.def.ghi" not in sanitized
+    assert fake_jwt not in sanitized
     assert "super-secret" not in sanitized
     assert "[REDACTED]" in sanitized
     assert "\n" not in sanitized

@@ -47,3 +47,4 @@ awscliv2.zip
 aws/dist/
 # cache bust Sat May 16 16:02:47 -03 2026
 # trigger
+*.log
