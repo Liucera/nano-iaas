@@ -6,7 +6,7 @@ __pycache__/
 .git/
 .gitignore
 *.md
-audit.log
+*.log
 awscliv2.zip
 *.sh
 terraform/

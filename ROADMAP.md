@@ -25,7 +25,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 4 | Telas essenciais | `[x]` | 100% da macroetapa (10% do projeto) | Os seis blocos foram implantados, validados e concluídos formalmente. |
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
 | 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
-| 7 | Segurança e auditoria | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
+| 7 | Segurança e auditoria | `[~]` | 0% funcional (0% do projeto) | Oito blocos definidos; implementação ainda não iniciada. |
 | 8 | Observabilidade e backup | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 10 | Checklist de lançamento e comunicação | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
@@ -174,24 +174,81 @@ As fontes oficiais foram verificadas pelos remotos e responsabilidades publicada
 
 É proibido misturar alterações, histórico, branches, PRs ou operações de deploy entre esses repositórios. Mudanças de código, infraestrutura e deploy do aplicativo/API pertencem ao `Liucera/nano-iaas`; mudanças do site institucional pertencem ao `Liucera/Liucera.github.io`.
 
+## Macroetapa 7 — Segurança e auditoria `[~]`
+
+A Macroetapa 7 foi iniciada formalmente em 25/07/2026. Seu objetivo é fortalecer os controles de segurança da aplicação e tornar a trilha de auditoria consistente, sanitizada, administrável e verificável, sem repetir rate limit, restrições S3, validação multi-cloud ou proteção de credenciais já concluídos.
+
+### Blocos oficiais
+
+1. **Baseline e inventário de segurança**
+   - revisar autenticação, autorização, auditoria, CORS, headers, dependências e arquivos versionados;
+   - registrar controles existentes e lacunas reais;
+   - não contabiliza progresso funcional isoladamente.
+
+2. **Headers HTTP e CORS restritivo**
+   - aplicar headers de segurança compatíveis com API e documentação;
+   - substituir métodos e headers CORS curingas pelos estritamente necessários;
+   - preservar frontend, Swagger/OpenAPI, health check e autenticação.
+
+3. **Autenticação e administração seguras**
+   - revisar JWT, expiração, validação de identidade e bootstrap administrativo;
+   - eliminar valores administrativos inseguros ou fixos;
+   - preservar bloqueio administrativo e rate limit já implantados.
+
+4. **Centralização, sanitização e cobertura da auditoria**
+   - centralizar gravações de auditoria;
+   - impedir segredos, credenciais, tokens e dados excessivos nos registros;
+   - cobrir ações sensíveis sem duplicar eventos já existentes.
+
+5. **Consulta administrativa de auditoria segura**
+   - manter acesso exclusivo de administrador;
+   - validar limites e parâmetros de consulta;
+   - registrar a própria consulta administrativa sem expor conteúdo sensível.
+
+6. **Higiene do repositório e dependências**
+   - remover logs de execução do versionamento e impedir recorrência;
+   - verificar segredos e dados sensíveis;
+   - auditar dependências e tratar achados alcançáveis dentro do escopo.
+
+7. **Regressão, revisão do plano, deploy controlado e smoke**
+   - executar a suíte completa e verificações de segurança;
+   - revisar previamente qualquer plano Terraform ou alteração de nuvem;
+   - implantar somente mudanças aprovadas e executar smoke tests não destrutivos.
+
+8. **Documentação e encerramento formal**
+   - atualizar README e ROADMAP;
+   - registrar evidências, produção, testes, CI e pendências;
+   - concluir a Macroetapa 7 somente após 8/8 blocos aprovados.
+
+### Critérios de conclusão
+
+- oito blocos concluídos e documentados;
+- nenhum segredo ou log de execução versionado;
+- CORS e headers de segurança cobertos por testes;
+- autenticação e acesso administrativo sem regressões;
+- auditoria centralizada, sanitizada e restrita ao administrador;
+- dependências verificadas e achados alcançáveis tratados ou formalmente justificados;
+- suíte completa aprovada nas versões Python suportadas;
+- GitGuardian e CI aprovados;
+- qualquer plano de nuvem revisado antes de apply ou deploy;
+- produção saudável após smoke tests não destrutivos;
+- PR de encerramento integrada à `main`.
+
 ## Macroetapas futuras
 
 As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter sua implementação antecipada:
 
-7. Segurança e auditoria.
 8. Observabilidade e backup.
 9. Deploy final e smoke tests.
 10. Checklist de lançamento e comunicação.
-
-A Macroetapa 7 possui apenas o objetivo nominal “Segurança e auditoria”. Seus blocos e critérios específicos ainda não estão definidos neste roadmap; nenhuma implementação técnica deve começar antes dessa definição formal.
 
 ## Método de cálculo
 
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 6 macroetapas concluídas × 10% = 60%;
-- macroetapa 6 concluída, implantada e validada = 10%;
-- macroetapas 7 a 10 não iniciadas = 0%.
+- macroetapa 7 em planejamento, sem entrega funcional concluída = 0%;
+- macroetapas 8 a 10 não iniciadas = 0%.
 
 **PERCENTUAL TOTAL FORMAL DO PROJETO: 60%**
 
@@ -199,8 +256,8 @@ Percentuais antigos calculados com versões anteriores do roadmap, incluindo est
 
 ## Próxima ação autorizável
 
-1. Planejar formalmente a Macroetapa 7 — Segurança e auditoria.
-2. Definir e aprovar seus blocos e critérios de conclusão antes de qualquer implementação técnica.
+1. Concluir o Bloco 7.1 — Baseline e inventário de segurança.
+2. Implementar os blocos seguintes na ordem definida, sem repetir macroetapas anteriores.
 3. Preservar o comportamento read-only e impedir exposição de credenciais, segredos ou erros operacionais.
-4. Implementar mudanças somente em worktree isolado, com testes e revisão antes de qualquer alteração cloud.
+4. Revisar testes e planos antes de qualquer alteração cloud.
 5. Não antecipar a Macroetapa 8 antes da conclusão formal da Macroetapa 7.

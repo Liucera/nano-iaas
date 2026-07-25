@@ -38,7 +38,9 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 
 A referência operacional vigente é a `main` no commit `1ef24a1962454b61a5b9fdc1ef65cc5a4aed426a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:15`, usando a imagem imutável `sha256:e1f76e374bc5194f7071188b8c953d6159905836c1648ce054aebe3b3f5a536e`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e health check em `GET /health` com matcher HTTP `200`.
 
-Os states oficiais AWS e GCP foram preservados e auditados. Os planos pós-deploy não apresentam diferenças. A próxima macroetapa prevista no roadmap é a Macroetapa 7 — Segurança e auditoria; seus blocos e critérios específicos ainda não estão definidos.
+Os states oficiais AWS e GCP foram preservados e auditados. Os planos pós-deploy não apresentam diferenças.
+
+A Macroetapa 7 — Segurança e auditoria foi iniciada formalmente em 25/07/2026, com oito blocos definidos no roadmap. O progresso geral permanece em 60% até a conclusão de entregas funcionais da etapa.
 
 ### Planos e fluxo comercial vigente
 
