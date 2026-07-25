@@ -7,8 +7,8 @@ import math
 import threading
 from hashlib import sha256
 from time import monotonic
-from datetime import datetime, timedelta
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
+from uuid import UUID, uuid4
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
@@ -231,19 +231,32 @@ def garantir_tabelas():
         conn.close()
 
 def migrar_admin_inicial():
+    admin_email = os.environ.get(
+        "NANO_IAAS_INITIAL_ADMIN_EMAIL",
+        "admin@nano-iaas.com",
+    ).strip().lower()
+    admin_password = os.environ.get("NANO_IAAS_INITIAL_ADMIN_PASSWORD")
+
     conn = conectar_db()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM users WHERE is_admin = true LIMIT 1;")
             if cur.fetchone():
                 return
+            if not admin_password:
+                return
+            if len(admin_password) < 12:
+                raise RuntimeError(
+                    "NANO_IAAS_INITIAL_ADMIN_PASSWORD deve ter pelo menos 12 caracteres"
+                )
+            senha_hash = gerar_hash_senha(admin_password)
             cur.execute(
                 """
                 INSERT INTO users (email, senha_hash, plano, is_admin)
                 VALUES (%s, %s, 'premium', true)
                 ON CONFLICT (email) DO NOTHING
                 """,
-                ("admin@nano-iaas.com", "$2b$12$iFhBXzXNqhksnzFyE5Zky.21nIufhCyBaX9OzOqMD99BrJyhyxaxi"),
+                (admin_email, senha_hash),
             )
         conn.commit()
     finally:
@@ -1149,6 +1162,19 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 app = FastAPI(title="Nano-IaaS Web")
 
 
+@app.middleware("http")
+async def aplicar_headers_seguranca(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-site"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
 @app.exception_handler(RequestValidationError)
 async def sanitizar_erro_validacao(request: Request, erro: RequestValidationError):
     if request.url.path == "/credenciais/gcp":
@@ -1176,8 +1202,8 @@ app.add_middleware(
         "https://nano-iaas.com.br",
         "http://localhost:3000",
     ],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 @app.on_event("startup")
@@ -1299,8 +1325,14 @@ def gerar_hash_senha(senha_plana: str) -> str:
 
 def criar_token(dados: dict):
     copia = dados.copy()
-    expira = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRA_EM)
-    copia.update({"exp": expira})
+    agora = datetime.now(timezone.utc)
+    expira = agora + timedelta(minutes=TOKEN_EXPIRA_EM)
+    copia.update({
+        "iat": agora,
+        "exp": expira,
+        "jti": str(uuid4()),
+        "typ": "access",
+    })
     return jwt.encode(copia, SECRET_KEY, algorithm=ALGORITHM)
 
 def resolver_ip_cliente(request: Request, confiar_proxy: bool | None = None) -> str:
@@ -1577,13 +1609,21 @@ def usuario_atual(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("uid")
-        if user_id is None:
+        subject = payload.get("sub")
+        if (
+            not isinstance(user_id, int)
+            or not isinstance(subject, str)
+            or not subject.strip()
+            or payload.get("typ") != "access"
+        ):
             raise HTTPException(status_code=401, detail="Token inválido")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
     usuario = buscar_usuario_por_id(user_id)
     if not usuario:
+        raise HTTPException(status_code=401, detail="Token inválido")
+    if str(usuario["email"]).strip().lower() != subject.strip().lower():
         raise HTTPException(status_code=401, detail="Token inválido")
     return usuario
 
