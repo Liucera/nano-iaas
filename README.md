@@ -24,25 +24,27 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 ### Estado oficial em 26/07/2026
 
 - Macroetapas 1 a 7: concluídas;
-- percentual total formal do projeto: **73,75%**;
+- percentual total formal do projeto: **75%**;
 - Macroetapa 7 — Segurança e auditoria: concluída, com 8/8 blocos;
 - Macroetapa 8 — Observabilidade e backup: em andamento;
 - Bloco 8.1 concluído, com política de retenção e recuperação versionada;
 - Bloco 8.2 concluído, com logging estruturado, sanitizado e correlacionado;
 - Bloco 8.3 concluído, com dashboard e sete alarmes operacionais AWS;
-- progresso funcional da Macroetapa 8: **37,5%**;
-- percentual incorporado ao projeto pela Macroetapa 8: **3,75%**;
-- alteração cloud do Bloco 8.3 restrita aos oito recursos CloudWatch revisados;
+- Bloco 8.4 concluído, com retenção explícita e canal de alerta validado;
+- progresso funcional da Macroetapa 8: **50%**;
+- percentual incorporado ao projeto pela Macroetapa 8: **5%**;
+- alterações cloud restritas aos recursos CloudWatch e SNS revisados;
 - PR #26: reforço de segurança e auditoria;
 - PR #28: planejamento da Etapa 8 e observabilidade estruturada;
 - PR #29: dashboard e alarmes operacionais AWS;
+- PR #31: retenção e canal operacional de alertas;
 - headers HTTP de segurança implantados;
 - CORS restrito às origens, métodos e headers autorizados;
 - JWT fortalecido e bootstrap administrativo sem credencial fixa;
 - auditoria centralizada, sanitizada e restrita ao administrador;
 - logs de execução removidos do versionamento;
 - dependências auditadas;
-- 316 testes aprovados localmente;
+- 318 testes aprovados localmente;
 - CI aprovado em Python 3.10, 3.11 e 3.12;
 - GitGuardian aprovado.
 
@@ -50,9 +52,9 @@ A referência operacional implantada na conclusão da Macroetapa 7 é o commit `
 
 O health check `GET /health`, Swagger e OpenAPI responderam HTTP 200. O endpoint `/audit` sem autenticação respondeu HTTP 401. Os headers de segurança foram confirmados em produção. A origem oficial do aplicativo foi permitida pelo CORS e uma origem não autorizada foi bloqueada.
 
-Os states oficiais AWS e GCP foram preservados e auditados. Após o Bloco 8.3, o plano Terraform AWS retornou `No changes`.
+Os states oficiais AWS e GCP foram preservados e auditados. Após o Bloco 8.4, o plano Terraform AWS retornou `No changes`.
 
-- AWS: lineage `6ce1818b-18d2-2a9e-afbd-8640951622e0`, serial `145`, SHA-256 `328fe90e2a6f38b3fd2e78ae439a92d6daa177b0794bde3f746fceeab2b96d95`;
+- AWS: lineage `6ce1818b-18d2-2a9e-afbd-8640951622e0`, serial `154`, SHA-256 `d56a167776e4db498a6c48062e9cdae1e9ae65a38a57c9126cfc425edfd61342`;
 - GCP: lineage `cc3c79fb-daae-5930-da06-9def95bd9114`, serial `13`, SHA-256 `bd79f583fcf8660f3c761eb10e506b0b1304937f1a874a0b3b27b378a48794da`.
 
 ### Macroetapa 8 — Observabilidade e backup `[~]`
@@ -63,7 +65,9 @@ O Bloco 8.2 foi concluído com logging JSON estruturado e sanitizado, correlaç�
 
 O Bloco 8.3 foi concluído com o dashboard `nano-iaas-operations-dev` e sete alarmes CloudWatch para disponibilidade, erros, latência, ECS e RDS. O plano revisado apresentou 8 recursos para criar, nenhum para alterar ou destruir. Após o `apply`, os sete alarmes ficaram em estado `OK`, o plano retornou `No changes` e o smoke confirmou ECS 1/1/0, rollout concluído, target saudável, RDS disponível e health check aprovado. Foram aprovados 316 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #29.
 
-A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md). Os Blocos 8.1 e 8.2 não realizaram alteração cloud; a alteração do Bloco 8.3 ficou restrita aos recursos CloudWatch revisados, com backups íntegros do state antes e depois do `apply`.
+O Bloco 8.4 foi concluído com retenção Terraform de 14 dias, tópico SNS operacional e os sete alarmes conectados aos estados `ALARM` e `OK`, sem notificação para `INSUFFICIENT_DATA`. A assinatura por e-mail foi configurada sem endereço no código ou no state Terraform, confirmada e validada por mensagem controlada recebida. O plano apresentou 1 recurso para criar, 7 alterações in-place e nenhuma destruição; o plano posterior retornou `No changes`. Foram aprovados 318 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #31.
+
+A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md). Os Blocos 8.1 e 8.2 não realizaram alteração cloud; as alterações dos Blocos 8.3 e 8.4 ficaram restritas aos recursos CloudWatch e SNS revisados, com backups íntegros do state antes e depois de cada `apply`.
 
 Objetivo: implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto nem reabrir entregas concluídas.
 
@@ -72,7 +76,7 @@ Blocos planejados:
 1. Baseline, política de retenção e requisitos de recuperação. `[x]`
 2. Logging estruturado, sanitizado e correlacionado. `[x]`
 3. Dashboard, métricas e alarmes operacionais da produção AWS. `[x]`
-4. Retenção de logs e canal de alerta operacional. `[ ]`
+4. Retenção de logs e canal de alerta operacional. `[x]`
 5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
 6. Integridade dos states e validação controlada de recuperação. `[ ]`
 7. Regressão, revisão de custos e planos, deploy controlado e smoke. `[ ]`
