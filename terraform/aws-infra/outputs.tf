@@ -84,3 +84,15 @@ output "acm_dns_validation_records" {
   ]
 }
 
+output "cloudwatch_dashboard_name" {
+  description = "Nome do dashboard operacional do Nano-IaaS no CloudWatch"
+  value       = aws_cloudwatch_dashboard.nano_iaas_operations.dashboard_name
+}
+
+output "cloudwatch_alarm_names" {
+  description = "Nomes dos alarmes operacionais do Nano-IaaS no CloudWatch"
+  value = sort([
+    for alarm in aws_cloudwatch_metric_alarm.operations :
+    alarm.alarm_name
+  ])
+}
