@@ -24,21 +24,23 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 ### Estado oficial em 26/07/2026
 
 - Macroetapas 1 a 7: concluídas;
-- percentual total formal do projeto: **71,25%**;
+- percentual total formal do projeto: **72,5%**;
 - Macroetapa 7 — Segurança e auditoria: concluída, com 8/8 blocos;
 - Macroetapa 8 — Observabilidade e backup: em andamento;
 - Bloco 8.1 concluído, com política de retenção e recuperação versionada;
-- progresso funcional da Macroetapa 8: **12,5%**;
-- percentual incorporado ao projeto pela Macroetapa 8: **1,25%**;
+- Bloco 8.2 concluído, com logging estruturado, sanitizado e correlacionado;
+- progresso funcional da Macroetapa 8: **25%**;
+- percentual incorporado ao projeto pela Macroetapa 8: **2,5%**;
 - nenhuma alteração cloud realizada até este ponto;
 - PR #26: reforço de segurança e auditoria;
+- PR #28: planejamento da Etapa 8 e observabilidade estruturada;
 - headers HTTP de segurança implantados;
 - CORS restrito às origens, métodos e headers autorizados;
 - JWT fortalecido e bootstrap administrativo sem credencial fixa;
 - auditoria centralizada, sanitizada e restrita ao administrador;
 - logs de execução removidos do versionamento;
 - dependências auditadas;
-- 302 testes aprovados localmente;
+- 309 testes aprovados localmente;
 - CI aprovado em Python 3.10, 3.11 e 3.12;
 - GitGuardian aprovado.
 
@@ -53,16 +55,18 @@ Os states oficiais AWS e GCP foram preservados e auditados. O plano Terraform AW
 
 ### Macroetapa 8 — Observabilidade e backup `[~]`
 
-A Macroetapa 8 está em andamento sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. O Bloco 8.1 foi concluído com baseline das três nuvens, política explícita de retenção, RPO, RTO, proteção dos states, validação controlada de recuperação e limites de custo. Nenhuma alteração cloud foi realizada.
+A Macroetapa 8 está em andamento sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. O Bloco 8.1 foi concluído com baseline das três nuvens, política explícita de retenção, RPO, RTO, proteção dos states, validação controlada de recuperação e limites de custo.
 
-A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md).
+O Bloco 8.2 foi concluído com logging JSON estruturado e sanitizado, correlação por `X-Request-ID`, duração das requisições e substituição dos `print()` nos providers reais AWS, GCP e Azure. Foram aprovados 309 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #28.
+
+A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md). Nenhuma alteração cloud foi realizada nos dois primeiros blocos.
 
 Objetivo: implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto nem reabrir entregas concluídas.
 
 Blocos planejados:
 
 1. Baseline, política de retenção e requisitos de recuperação. `[x]`
-2. Logging estruturado, sanitizado e correlacionado. `[ ]`
+2. Logging estruturado, sanitizado e correlacionado. `[x]`
 3. Dashboard, métricas e alarmes operacionais da produção AWS. `[ ]`
 4. Retenção de logs e canal de alerta operacional. `[ ]`
 5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`

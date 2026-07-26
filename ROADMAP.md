@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
 **Última atualização:** 26/07/2026
-**Percentual total formal do projeto:** **71,25%**
+**Percentual total formal do projeto:** **72,5%**
 
 ## Governança
 
@@ -26,7 +26,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
 | 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
 | 7 | Segurança e auditoria | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
-| 8 | Observabilidade e backup | `[~]` | 12,5% da macroetapa (1,25% do projeto) | Bloco 8.1 concluído; nenhuma alteração cloud realizada. |
+| 8 | Observabilidade e backup | `[~]` | 25% da macroetapa (2,5% do projeto) | Blocos 8.1 e 8.2 concluídos; nenhuma alteração cloud realizada. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 10 | Checklist de lançamento e comunicação | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 
@@ -215,12 +215,14 @@ A Macroetapa 8 foi aberta em 26/07/2026, sobre a base oficial `f9c12c7fe0a419cb4
 
 O Bloco 8.1 foi concluído com baseline das três nuvens, retenções mínimas, RPO, RTO, regras de integridade dos states, método de recuperação controlada e limites de custo. A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md).
 
-Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macroetapa, equivalente a 1,25% do projeto por bloco. O progresso atual da Macroetapa 8 é **12,5%**, sem alteração cloud.
+O Bloco 8.2 foi concluído com logging JSON estruturado e sanitizado, correlação por `X-Request-ID`, duração das requisições e substituição dos `print()` nos providers reais. A validação aprovou 309 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #28.
+
+Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macroetapa, equivalente a 1,25% do projeto por bloco. O progresso atual da Macroetapa 8 é **25%**, sem alteração cloud.
 
 ### Blocos planejados
 
 1. Baseline, política de retenção e requisitos de recuperação. `[x]`
-2. Logging estruturado, sanitizado e correlacionado. `[ ]`
+2. Logging estruturado, sanitizado e correlacionado. `[x]`
 3. Dashboard, métricas e alarmes operacionais da produção AWS. `[ ]`
 4. Retenção de logs e canal de alerta operacional. `[ ]`
 5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
@@ -270,17 +272,17 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 7 macroetapas concluídas × 10% = 70%;
-- 1 de 8 blocos da Macroetapa 8 concluído = 1,25%;
+- 2 de 8 blocos da Macroetapa 8 concluídos = 2,5%;
 - macroetapas 9 e 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 71,25%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 72,5%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Iniciar o Bloco 8.2 — Logging estruturado, sanitizado e correlacionado.
-2. Preservar o comportamento read-only e impedir segredos ou dados excessivos nos logs.
-3. Implementar correlação e duração das requisições sem alteração cloud.
-4. Executar testes locais antes de preparar qualquer deploy.
-5. Não antecipar os blocos posteriores da Macroetapa 8.
+1. Iniciar o Bloco 8.3 — Dashboard, métricas e alarmes operacionais da produção AWS.
+2. Identificar os recursos Terraform exatos antes de preparar alterações.
+3. Preservar Container Insights desativado e usar métricas nativas.
+4. Revisar custos e o plano antes de qualquer `apply`.
+5. Não antecipar os Blocos 8.4 a 8.8.
