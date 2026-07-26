@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
-**Última atualização:** 25/07/2026
-**Percentual total formal do projeto:** **70%**
+**Última atualização:** 26/07/2026
+**Percentual total formal do projeto:** **72,5%**
 
 ## Governança
 
@@ -26,7 +26,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
 | 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
 | 7 | Segurança e auditoria | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
-| 8 | Observabilidade e backup | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
+| 8 | Observabilidade e backup | `[~]` | 25% da macroetapa (2,5% do projeto) | Blocos 8.1 e 8.2 concluídos; nenhuma alteração cloud realizada. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 10 | Checklist de lançamento e comunicação | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 
@@ -209,11 +209,61 @@ A Macroetapa 7 foi concluída formalmente em 25/07/2026. Seu objetivo foi fortal
 
 As evidências completas estão registradas em `docs/ETAPA7-ENCERRAMENTO.md`.
 
+## Macroetapa 8 — Observabilidade e backup `[~]`
+
+A Macroetapa 8 foi aberta em 26/07/2026, sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. Seu objetivo é implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto.
+
+O Bloco 8.1 foi concluído com baseline das três nuvens, retenções mínimas, RPO, RTO, regras de integridade dos states, método de recuperação controlada e limites de custo. A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md).
+
+O Bloco 8.2 foi concluído com logging JSON estruturado e sanitizado, correlação por `X-Request-ID`, duração das requisições e substituição dos `print()` nos providers reais. A validação aprovou 309 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #28.
+
+Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macroetapa, equivalente a 1,25% do projeto por bloco. O progresso atual da Macroetapa 8 é **25%**, sem alteração cloud.
+
+### Blocos planejados
+
+1. Baseline, política de retenção e requisitos de recuperação. `[x]`
+2. Logging estruturado, sanitizado e correlacionado. `[x]`
+3. Dashboard, métricas e alarmes operacionais da produção AWS. `[ ]`
+4. Retenção de logs e canal de alerta operacional. `[ ]`
+5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
+6. Integridade dos states e validação controlada de recuperação. `[ ]`
+7. Regressão, revisão de custos e planos, deploy controlado e smoke. `[ ]`
+8. Documentação e encerramento formal. `[ ]`
+
+### Critérios de conclusão
+
+- logs estruturados sem segredos ou dados excessivos;
+- correlação e duração das requisições;
+- dashboard e alarmes de disponibilidade, erros, latência, ECS e RDS;
+- canal de alerta operacional validado;
+- retenção explícita e gerenciada por Terraform;
+- RDS com recuperação mínima de sete dias;
+- proteções existentes na AWS e no GCP preservadas;
+- Azure com versionamento e soft delete;
+- states oficiais preservados e acompanhados por backups íntegros;
+- recuperação validada sem tocar em dados oficiais;
+- custos e planos revisados antes de qualquer `apply`;
+- testes, CI, GitGuardian e smoke aprovados;
+- plano pós-deploy sem diferenças;
+- nenhuma antecipação da Macroetapa 9.
+
+### Restrições de execução
+
+- preservar `enable_https=true`, os controles de segurança concluídos e o comportamento read-only;
+- preservar e auditar os states oficiais das três nuvens;
+- não executar `apply`, deploy ou alteração cloud antes da revisão dos planos;
+- não repetir auditorias das Macroetapas 6 e 7 enquanto a base permanecer inalterada;
+- usar PowerShell nativo do Windows para operações Azure dependentes de CLI, sem contornar o Acesso Condicional;
+- manter Git e Terraform exclusivamente no WSL;
+- não tratar recuperação administrativa, recuperação de e-mail, “Esqueci minha senha”, redefinição por e-mail, 2FA, códigos de recuperação ou PagSeguro;
+- não ampliar o escopo para tratar os três warnings conhecidos da suíte;
+- somente no encerramento da Macroetapa 8, revisar formalmente o roadmap para concentrar recuperação de acesso, 2FA e PagSeguro na nova Macroetapa 9 e consolidar deploy final, smoke, checklist e comunicação na nova Macroetapa 10, sem implementar esses itens nesta macroetapa;
+- não antecipar a Macroetapa 9.
+
 ## Macroetapas futuras
 
 As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter sua implementação antecipada:
 
-8. Observabilidade e backup.
 9. Deploy final e smoke tests.
 10. Checklist de lançamento e comunicação.
 
@@ -222,17 +272,17 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 7 macroetapas concluídas × 10% = 70%;
-- macroetapa 7 concluída, implantada e validada = 10%;
-- macroetapas 8 a 10 não iniciadas = 0%.
+- 2 de 8 blocos da Macroetapa 8 concluídos = 2,5%;
+- macroetapas 9 e 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 70%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 72,5%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Planejar formalmente a Macroetapa 8 — Observabilidade e backup.
-2. Identificar literalmente seu escopo antes de definir blocos ou iniciar implementação.
-3. Preservar o comportamento read-only e os controles de segurança concluídos.
-4. Trabalhar somente em worktree isolado, com testes e revisão prévia de qualquer plano.
-5. Não antecipar a Macroetapa 9 antes da conclusão formal da Macroetapa 8.
+1. Iniciar o Bloco 8.3 — Dashboard, métricas e alarmes operacionais da produção AWS.
+2. Identificar os recursos Terraform exatos antes de preparar alterações.
+3. Preservar Container Insights desativado e usar métricas nativas.
+4. Revisar custos e o plano antes de qualquer `apply`.
+5. Não antecipar os Blocos 8.4 a 8.8.

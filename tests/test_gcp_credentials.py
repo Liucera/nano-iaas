@@ -460,19 +460,32 @@ def test_credential_management_never_calls_google_cloud(monkeypatch, fake_databa
     backend.excluir_credencial_gcp(USER_ONE)
 
 
-def test_gcp_authentication_error_does_not_log_credential(monkeypatch, capsys):
+def test_gcp_authentication_error_does_not_log_credential(monkeypatch):
     def fail_credentials(_info):
         raise RuntimeError(f"{CLIENT_EMAIL_ONE} {PRIVATE_KEY_ONE} {PRIVATE_KEY_ID_ONE}")
 
+    from unittest.mock import Mock
+
+    captured_logger = Mock()
     monkeypatch.setattr(
         "providers.gcp.gcs_reader.service_account.Credentials.from_service_account_info",
         fail_credentials,
     )
+    monkeypatch.setattr(
+        "providers.gcp.gcs_reader.logger",
+        captured_logger,
+    )
     reader = backend.GCSReader()
 
     assert reader.authenticate({"service_account_json": json.dumps(service_account())}) is False
-    output = capsys.readouterr().out
-    assert "Erro ao autenticar no GCP" in output
+    captured_logger.warning.assert_called_once_with(
+        "provider_authentication_failed",
+        extra={
+            "provider": "gcp",
+            "operation": "authenticate",
+        },
+    )
+    output = repr(captured_logger.mock_calls)
     for sensitive in (CLIENT_EMAIL_ONE, PRIVATE_KEY_ONE, PRIVATE_KEY_ID_ONE):
         assert sensitive not in output
 

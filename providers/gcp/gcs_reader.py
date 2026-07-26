@@ -8,6 +8,10 @@ from google.api_core.exceptions import GoogleAPIError
 
 from core.provider import CloudProvider
 from core.data_reader import DataReader
+from core.observability import obter_logger
+
+
+logger = obter_logger("providers.gcp")
 
 
 class GCSReader(CloudProvider):
@@ -40,7 +44,7 @@ class GCSReader(CloudProvider):
             self.client = storage.Client(project=self.project_id)
             return True
         except Exception:
-            print("Erro ao autenticar no GCP")
+            logger.warning("provider_authentication_failed", extra={"provider": "gcp", "operation": "authenticate"})
             return False
 
     def validate_credentials(self) -> bool:
@@ -50,7 +54,7 @@ class GCSReader(CloudProvider):
             next(iter(buckets), None)
             return True
         except Exception:
-            print("Erro ao validar credenciais GCP")
+            logger.warning("provider_credential_validation_failed", extra={"provider": "gcp", "operation": "validate_credentials"})
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
@@ -58,7 +62,7 @@ class GCSReader(CloudProvider):
             for bucket in self.client.list_buckets():
                 yield {"name": bucket.name, "location": bucket.location, "created": bucket.time_created.isoformat() if bucket.time_created else None, "type": "bucket"}
         except GoogleAPIError:
-            print("Erro ao listar buckets GCS")
+            logger.error("provider_list_failed", extra={"provider": "gcp", "operation": "list_resources"})
             raise
 
     def read(self, resource_path: str, format: str = "json", **options) -> Iterator[Dict[str, Any]]:
@@ -88,7 +92,7 @@ class GCSReader(CloudProvider):
                     yield record
                     count += 1
         except GoogleAPIError:
-            print("Erro ao ler GCS")
+            logger.error("provider_read_failed", extra={"provider": "gcp", "operation": "read"})
             raise
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
