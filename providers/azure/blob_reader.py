@@ -6,6 +6,10 @@ from azure.identity import ClientSecretCredential
 
 from core.provider import CloudProvider
 from core.data_reader import DataReader
+from core.observability import obter_logger
+
+
+logger = obter_logger("providers.azure")
 
 
 class BlobReader(CloudProvider):
@@ -42,7 +46,7 @@ class BlobReader(CloudProvider):
                     or not isinstance(storage_account_name, str)
                     or not re.fullmatch(r"[a-z0-9]{3,24}", storage_account_name)
                 ):
-                    print("❌ Credencial Azure pendente de validação")
+                    logger.warning("provider_credentials_incomplete", extra={"provider": "azure", "operation": "authenticate"})
                     return False
 
                 credential = ClientSecretCredential(
@@ -63,7 +67,7 @@ class BlobReader(CloudProvider):
                 "AZURE_STORAGE_CONNECTION_STRING"
             )
             if not connection_string:
-                print("❌ Nenhuma connection string do Azure disponível")
+                logger.warning("provider_credentials_unavailable", extra={"provider": "azure", "operation": "authenticate"})
                 return False
 
             self.client = BlobServiceClient.from_connection_string(
@@ -71,7 +75,7 @@ class BlobReader(CloudProvider):
             )
             return True
         except Exception:
-            print("❌ Erro ao autenticar no Azure")
+            logger.warning("provider_authentication_failed", extra={"provider": "azure", "operation": "authenticate"})
             return False
 
     def validate_credentials(self) -> bool:
@@ -81,7 +85,7 @@ class BlobReader(CloudProvider):
             next(iter(containers), None)
             return True
         except Exception:
-            print("❌ Falha ao validar credenciais Azure")
+            logger.warning("provider_credential_validation_failed", extra={"provider": "azure", "operation": "validate_credentials"})
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
@@ -94,7 +98,7 @@ class BlobReader(CloudProvider):
                     'type': 'container'
                 }
         except AzureError:
-            print("❌ Erro ao listar containers")
+            logger.error("provider_list_failed", extra={"provider": "azure", "operation": "list_resources"})
 
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
         """
@@ -136,7 +140,7 @@ class BlobReader(CloudProvider):
                     count += 1
 
         except AzureError:
-            print("❌ Erro ao ler Blob Storage")
+            logger.error("provider_read_failed", extra={"provider": "azure", "operation": "read"})
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
         path = resource_path.replace('azure://', '')

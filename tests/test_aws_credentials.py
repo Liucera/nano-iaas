@@ -361,11 +361,15 @@ def test_audit_failure_rolls_back_creation(monkeypatch):
     assert state == {"credentials": {}, "audits": []}
 
 
-def test_legacy_aws_auth_error_does_not_log_credentials(monkeypatch, capsys):
+def test_legacy_aws_auth_error_does_not_log_credentials(monkeypatch):
     def fail_session(**_kwargs):
         raise RuntimeError(f"{ACCESS_KEY_ONE} {SECRET_KEY_ONE}")
 
+    from unittest.mock import Mock
+
+    captured_logger = Mock()
     monkeypatch.setattr("providers.aws.s3_reader.boto3.Session", fail_session)
+    monkeypatch.setattr("providers.aws.s3_reader.logger", captured_logger)
     reader = backend.S3Reader()
 
     assert reader.authenticate({
@@ -373,14 +377,20 @@ def test_legacy_aws_auth_error_does_not_log_credentials(monkeypatch, capsys):
         "secret_access_key": SECRET_KEY_ONE,
     }) is False
 
-    output = capsys.readouterr().out
-    assert "Erro ao autenticar na AWS" in output
+    captured_logger.warning.assert_called_once_with(
+        "provider_authentication_failed",
+        extra={
+            "provider": "aws",
+            "operation": "authenticate",
+        },
+    )
+    output = repr(captured_logger.mock_calls)
     assert ACCESS_KEY_ONE not in output
     assert SECRET_KEY_ONE not in output
 
 
 @pytest.mark.parametrize("operation", ["list", "read"])
-def test_legacy_aws_client_errors_do_not_log_credentials(operation, capsys):
+def test_legacy_aws_client_errors_do_not_log_credentials(operation, monkeypatch):
     sensitive_error = backend.ClientError(
         {
             "Error": {
@@ -398,6 +408,11 @@ def test_legacy_aws_client_errors_do_not_log_credentials(operation, capsys):
         def get_paginator(self, _name):
             raise sensitive_error
 
+    from unittest.mock import Mock
+
+    captured_logger = Mock()
+    monkeypatch.setattr("providers.aws.s3_reader.logger", captured_logger)
+
     reader = backend.S3Reader()
     reader.client = FailingClient()
     if operation == "list":
@@ -405,7 +420,24 @@ def test_legacy_aws_client_errors_do_not_log_credentials(operation, capsys):
     else:
         assert list(reader.read("s3://fictitious-bucket/dados/")) == []
 
-    output = capsys.readouterr().out
+    expected_event = (
+        "provider_list_failed"
+        if operation == "list"
+        else "provider_read_failed"
+    )
+    expected_operation = (
+        "list_resources"
+        if operation == "list"
+        else "read"
+    )
+    captured_logger.error.assert_called_once_with(
+        expected_event,
+        extra={
+            "provider": "aws",
+            "operation": expected_operation,
+        },
+    )
+    output = repr(captured_logger.mock_calls)
     assert ACCESS_KEY_ONE not in output
     assert SECRET_KEY_ONE not in output
 

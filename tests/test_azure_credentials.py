@@ -307,11 +307,30 @@ def test_schema_openapi_and_cloud_management_contract(fake_database, monkeypatch
     backend.excluir_credencial_azure(USER_ONE)
 
 
-def test_azure_provider_errors_are_sanitized_and_service_principal_does_not_use_fallback(monkeypatch, capsys):
-    monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "system-sensitive-connection-string")
+def test_azure_provider_errors_are_sanitized_and_service_principal_does_not_use_fallback(monkeypatch):
+    from unittest.mock import Mock
+
+    captured_logger = Mock()
+    monkeypatch.setattr(
+        "providers.azure.blob_reader.logger",
+        captured_logger,
+    )
+    monkeypatch.setenv(
+        "AZURE_STORAGE_CONNECTION_STRING",
+        "system-sensitive-connection-string",
+    )
     reader = BlobReader()
     assert reader.authenticate({"tenant_id": TENANT_ONE, "client_secret": SECRET_ONE}) is False
-    assert "system-sensitive-connection-string" not in capsys.readouterr().out
+    captured_logger.warning.assert_called_once_with(
+        "provider_credentials_incomplete",
+        extra={
+            "provider": "azure",
+            "operation": "authenticate",
+        },
+    )
+    output = repr(captured_logger.mock_calls)
+    assert "system-sensitive-connection-string" not in output
+    captured_logger.reset_mock()
 
     class BrokenClient:
         def list_containers(self):
@@ -325,7 +344,15 @@ def test_azure_provider_errors_are_sanitized_and_service_principal_does_not_use_
     assert reader.get_metadata("azure://container/blob") == {
         "error": "Não foi possível consultar os metadados no Azure Blob Storage"
     }
-    assert SECRET_ONE not in capsys.readouterr().out
+    captured_logger.error.assert_called_once_with(
+        "provider_list_failed",
+        extra={
+            "provider": "azure",
+            "operation": "list_resources",
+        },
+    )
+    output = repr(captured_logger.mock_calls)
+    assert SECRET_ONE not in output
 
 
 def test_azure_provider_authenticates_service_principal(monkeypatch):

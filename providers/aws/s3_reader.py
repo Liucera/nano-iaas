@@ -5,6 +5,10 @@ from botocore.exceptions import ClientError
 
 from core.provider import CloudProvider
 from core.data_reader import DataReader
+from core.observability import obter_logger
+
+
+logger = obter_logger("providers.aws")
 
 
 class S3Reader(CloudProvider):
@@ -72,7 +76,7 @@ class S3Reader(CloudProvider):
             self.client = self.session.client('s3')
             return True
         except Exception:
-            print("❌ Erro ao autenticar na AWS")
+            logger.warning("provider_authentication_failed", extra={"provider": "aws", "operation": "authenticate"})
             return False
 
     def validate_credentials(self) -> bool:
@@ -83,7 +87,7 @@ class S3Reader(CloudProvider):
             self.session.client("sts").get_caller_identity()
             return True
         except Exception:
-            print("❌ Falha ao validar credenciais AWS")
+            logger.warning("provider_credential_validation_failed", extra={"provider": "aws", "operation": "validate_credentials"})
             return False
 
     def list_resources(self, **filters) -> Iterator[Dict[str, Any]]:
@@ -106,7 +110,7 @@ class S3Reader(CloudProvider):
                     'type': 'bucket'
                 }
         except ClientError:
-            print("❌ Erro ao listar buckets")
+            logger.error("provider_list_failed", extra={"provider": "aws", "operation": "list_resources"})
 
     def read(self, resource_path: str, format: str = 'json', **options) -> Iterator[Dict[str, Any]]:
         """
@@ -148,7 +152,7 @@ class S3Reader(CloudProvider):
                         count += 1
 
         except ClientError:
-            print("❌ Erro ao ler S3")
+            logger.error("provider_read_failed", extra={"provider": "aws", "operation": "read"})
 
     def get_metadata(self, resource_path: str) -> Dict[str, Any]:
         bucket, key = self._parse_resource_path(resource_path)

@@ -63,7 +63,13 @@ def test_cors_does_not_use_wildcards():
         "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
     }
     assert set(middleware.kwargs["allow_headers"]) == {
-        "Authorization", "Content-Type", "Accept",
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Request-ID",
+    }
+    assert set(middleware.kwargs["expose_headers"]) == {
+        "X-Request-ID",
     }
 
 

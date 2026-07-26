@@ -37,9 +37,16 @@ def test_authenticate_uses_service_account_json(monkeypatch):
 
 
 @pytest.mark.parametrize("operation", ["list", "read", "metadata"])
-def test_google_errors_never_log_or_return_sensitive_exception(operation, capsys):
+def test_google_errors_never_log_or_return_sensitive_exception(operation, monkeypatch):
+    from unittest.mock import Mock
+
     sensitive = "fictitious-private-material service-account@example.invalid"
     error = GoogleAPIError(sensitive)
+    captured_logger = Mock()
+    monkeypatch.setattr(
+        "providers.gcp.gcs_reader.logger",
+        captured_logger,
+    )
 
     class FailingBucket:
         def get_blob(self, _name):
@@ -69,7 +76,27 @@ def test_google_errors_never_log_or_return_sensitive_exception(operation, capsys
             "error": "Falha ao obter metadados GCS"
         }
 
-    assert sensitive not in capsys.readouterr().out
+    if operation == "list":
+        captured_logger.error.assert_called_once_with(
+            "provider_list_failed",
+            extra={
+                "provider": "gcp",
+                "operation": "list_resources",
+            },
+        )
+    elif operation == "read":
+        captured_logger.error.assert_called_once_with(
+            "provider_read_failed",
+            extra={
+                "provider": "gcp",
+                "operation": "read",
+            },
+        )
+    else:
+        captured_logger.error.assert_not_called()
+
+    output = repr(captured_logger.mock_calls)
+    assert sensitive not in output
 
 
 def test_validate_credentials_limits_gcp_bucket_query():

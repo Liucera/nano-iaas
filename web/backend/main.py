@@ -31,9 +31,19 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from cryptography.fernet import Fernet
 
 from google.api_core.exceptions import GoogleAPIError
+from core.observability import (
+    definir_request_id,
+    normalizar_request_id,
+    obter_logger,
+    restaurar_request_id,
+)
 from providers.gcp.gcs_reader import GCSReader
 from providers.azure.blob_reader import BlobReader
 from providers.aws.s3_reader import S3Reader
+
+
+logger_observabilidade_http = obter_logger("http")
+
 
 # ── Configuracoes de seguranca ──────────────────────────────
 SECRET_KEY = os.environ.get("NANO_IAAS_SECRET_KEY")
@@ -1263,6 +1273,49 @@ async def aplicar_headers_seguranca(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def registrar_observabilidade_http(request: Request, call_next):
+    request_id = normalizar_request_id(
+        request.headers.get("X-Request-ID")
+    )
+    request.state.request_id = request_id
+    token_request_id = definir_request_id(request_id)
+    inicio = monotonic()
+    status_code = 500
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        duration_ms = round((monotonic() - inicio) * 1000, 3)
+        extra = {
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": status_code,
+            "duration_ms": duration_ms,
+        }
+
+        if status_code >= 500:
+            logger_observabilidade_http.error(
+                "http_request_completed",
+                extra=extra,
+            )
+        elif status_code >= 400:
+            logger_observabilidade_http.warning(
+                "http_request_completed",
+                extra=extra,
+            )
+        else:
+            logger_observabilidade_http.info(
+                "http_request_completed",
+                extra=extra,
+            )
+
+        restaurar_request_id(token_request_id)
+
+
 @app.exception_handler(RequestValidationError)
 async def sanitizar_erro_validacao(request: Request, erro: RequestValidationError):
     if request.url.path == "/credenciais/gcp":
@@ -1291,7 +1344,13 @@ app.add_middleware(
         "http://localhost:3000",
     ],
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Request-ID",
+    ],
+    expose_headers=["X-Request-ID"],
 )
 
 @app.on_event("startup")
