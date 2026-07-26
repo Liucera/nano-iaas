@@ -1,7 +1,7 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
 **Última atualização:** 26/07/2026
-**Percentual total formal do projeto:** **70%**
+**Percentual total formal do projeto:** **71,25%**
 
 ## Governança
 
@@ -26,7 +26,7 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
 | 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
 | 7 | Segurança e auditoria | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
-| 8 | Observabilidade e backup | `[~]` | 0% (0% do projeto) | Aberta em planejamento; auditoria concluída sem entrega funcional ou alteração cloud. |
+| 8 | Observabilidade e backup | `[~]` | 12,5% da macroetapa (1,25% do projeto) | Bloco 8.1 concluído; nenhuma alteração cloud realizada. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 10 | Checklist de lançamento e comunicação | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 
@@ -211,20 +211,22 @@ As evidências completas estão registradas em `docs/ETAPA7-ENCERRAMENTO.md`.
 
 ## Macroetapa 8 — Observabilidade e backup `[~]`
 
-A Macroetapa 8 foi aberta em planejamento em 26/07/2026, sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. Seu objetivo é implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto.
+A Macroetapa 8 foi aberta em 26/07/2026, sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. Seu objetivo é implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto.
 
-A auditoria inicial foi concluída, mas auditoria e planejamento não contam como entrega funcional. O progresso da macroetapa permanece em **0%**, sem alteração cloud.
+O Bloco 8.1 foi concluído com baseline das três nuvens, retenções mínimas, RPO, RTO, regras de integridade dos states, método de recuperação controlada e limites de custo. A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md).
+
+Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macroetapa, equivalente a 1,25% do projeto por bloco. O progresso atual da Macroetapa 8 é **12,5%**, sem alteração cloud.
 
 ### Blocos planejados
 
-1. Baseline, política de retenção e requisitos de recuperação.
-2. Logging estruturado, sanitizado e correlacionado.
-3. Dashboard, métricas e alarmes operacionais da produção AWS.
-4. Retenção de logs e canal de alerta operacional.
-5. Proteção de dados e backups em AWS, GCP e Azure.
-6. Integridade dos states e validação controlada de recuperação.
-7. Regressão, revisão de custos e planos, deploy controlado e smoke.
-8. Documentação e encerramento formal.
+1. Baseline, política de retenção e requisitos de recuperação. `[x]`
+2. Logging estruturado, sanitizado e correlacionado. `[ ]`
+3. Dashboard, métricas e alarmes operacionais da produção AWS. `[ ]`
+4. Retenção de logs e canal de alerta operacional. `[ ]`
+5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
+6. Integridade dos states e validação controlada de recuperação. `[ ]`
+7. Regressão, revisão de custos e planos, deploy controlado e smoke. `[ ]`
+8. Documentação e encerramento formal. `[ ]`
 
 ### Critérios de conclusão
 
@@ -268,17 +270,17 @@ As macroetapas abaixo ainda não foram iniciadas formalmente e não devem ter su
 As 10 macroetapas possuem o mesmo peso de 10%:
 
 - 7 macroetapas concluídas × 10% = 70%;
-- macroetapa 8 aberta em planejamento, sem entrega funcional = 0%;
+- 1 de 8 blocos da Macroetapa 8 concluído = 1,25%;
 - macroetapas 9 e 10 não iniciadas = 0%.
 
-**PERCENTUAL TOTAL FORMAL DO PROJETO: 70%**
+**PERCENTUAL TOTAL FORMAL DO PROJETO: 71,25%**
 
 Percentuais antigos calculados com versões anteriores do roadmap, incluindo estimativas próximas de 92%, não representam esta sequência oficial de preparação para lançamento e não devem ser reutilizados.
 
 ## Próxima ação autorizável
 
-1. Concluir o Bloco 8.1 com a política explícita de retenção e os requisitos de recuperação.
-2. Preservar o comportamento read-only, `enable_https=true` e os controles de segurança concluídos.
-3. Revisar qualquer plano antes de `apply`, deploy ou alteração cloud.
-4. Trabalhar somente no worktree isolado da Macroetapa 8.
-5. Não antecipar a Macroetapa 9 antes da conclusão formal da Macroetapa 8.
+1. Iniciar o Bloco 8.2 — Logging estruturado, sanitizado e correlacionado.
+2. Preservar o comportamento read-only e impedir segredos ou dados excessivos nos logs.
+3. Implementar correlação e duração das requisições sem alteração cloud.
+4. Executar testes locais antes de preparar qualquer deploy.
+5. Não antecipar os blocos posteriores da Macroetapa 8.

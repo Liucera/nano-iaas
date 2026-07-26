@@ -24,11 +24,13 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 ### Estado oficial em 26/07/2026
 
 - Macroetapas 1 a 7: concluídas;
-- percentual total formal do projeto: **70%**;
+- percentual total formal do projeto: **71,25%**;
 - Macroetapa 7 — Segurança e auditoria: concluída, com 8/8 blocos;
-- Macroetapa 8 — Observabilidade e backup: aberta em planejamento;
-- progresso funcional da Macroetapa 8: **0%**;
-- auditoria inicial concluída, sem alteração cloud e sem crédito funcional;
+- Macroetapa 8 — Observabilidade e backup: em andamento;
+- Bloco 8.1 concluído, com política de retenção e recuperação versionada;
+- progresso funcional da Macroetapa 8: **12,5%**;
+- percentual incorporado ao projeto pela Macroetapa 8: **1,25%**;
+- nenhuma alteração cloud realizada até este ponto;
 - PR #26: reforço de segurança e auditoria;
 - headers HTTP de segurança implantados;
 - CORS restrito às origens, métodos e headers autorizados;
@@ -51,20 +53,22 @@ Os states oficiais AWS e GCP foram preservados e auditados. O plano Terraform AW
 
 ### Macroetapa 8 — Observabilidade e backup `[~]`
 
-A Macroetapa 8 está aberta em planejamento sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. A auditoria inicial identificou os controles existentes e as lacunas de observabilidade e recuperação, mas não realizou alteração cloud e não representa progresso funcional.
+A Macroetapa 8 está em andamento sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. O Bloco 8.1 foi concluído com baseline das três nuvens, política explícita de retenção, RPO, RTO, proteção dos states, validação controlada de recuperação e limites de custo. Nenhuma alteração cloud foi realizada.
+
+A política aprovada está em [`docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md`](docs/ETAPA8-POLITICA-RETENCAO-RECUPERACAO.md).
 
 Objetivo: implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto nem reabrir entregas concluídas.
 
 Blocos planejados:
 
-1. Baseline, política de retenção e requisitos de recuperação.
-2. Logging estruturado, sanitizado e correlacionado.
-3. Dashboard, métricas e alarmes operacionais da produção AWS.
-4. Retenção de logs e canal de alerta operacional.
-5. Proteção de dados e backups em AWS, GCP e Azure.
-6. Integridade dos states e validação controlada de recuperação.
-7. Regressão, revisão de custos e planos, deploy controlado e smoke.
-8. Documentação e encerramento formal.
+1. Baseline, política de retenção e requisitos de recuperação. `[x]`
+2. Logging estruturado, sanitizado e correlacionado. `[ ]`
+3. Dashboard, métricas e alarmes operacionais da produção AWS. `[ ]`
+4. Retenção de logs e canal de alerta operacional. `[ ]`
+5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
+6. Integridade dos states e validação controlada de recuperação. `[ ]`
+7. Regressão, revisão de custos e planos, deploy controlado e smoke. `[ ]`
+8. Documentação e encerramento formal. `[ ]`
 
 Critérios de conclusão:
 
