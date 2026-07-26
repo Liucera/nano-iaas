@@ -96,3 +96,8 @@ output "cloudwatch_alarm_names" {
     alarm.alarm_name
   ])
 }
+
+output "operational_alerts_topic_arn" {
+  description = "ARN do tópico SNS de alertas operacionais"
+  value       = aws_sns_topic.operational_alerts.arn
+}
