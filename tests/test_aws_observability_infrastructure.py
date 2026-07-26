@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 OBSERVABILITY = (
     ROOT / "terraform/aws-infra/observability.tf"
 ).read_text(encoding="utf-8")
+ALERTS = (
+    ROOT / "terraform/aws-infra/alerts.tf"
+).read_text(encoding="utf-8")
 MAIN = (
     ROOT / "terraform/aws-infra/main.tf"
 ).read_text(encoding="utf-8")
@@ -133,18 +136,37 @@ def test_dashboard_covers_required_native_metrics():
         assert metric in OBSERVABILITY
 
 
-def test_block_8_3_does_not_create_alert_channel_or_insights():
-    forbidden_actions = re.search(
-        r"^\s*(alarm_actions|ok_actions|"
-        r"insufficient_data_actions)\s*=",
-        OBSERVABILITY,
-        flags=re.MULTILINE,
+def test_operational_alert_topic_is_terraform_managed():
+    assert (
+        'resource "aws_sns_topic" "operational_alerts"'
+        in ALERTS
     )
-    assert forbidden_actions is None
-    assert 'resource "aws_sns_' not in OBSERVABILITY
+    assert (
+        'name = "nano-iaas-operational-alerts-${var.environment}"'
+        in ALERTS
+    )
+    assert 'Project   = "nano-iaas"' in ALERTS
+    assert 'ManagedBy = "terraform"' in ALERTS
+
+
+def test_alarms_notify_alarm_and_recovery_only():
+    topic_arn = "aws_sns_topic.operational_alerts.arn"
+
+    assert f"alarm_actions             = [{topic_arn}]" in (
+        OBSERVABILITY
+    )
+    assert f"ok_actions                = [{topic_arn}]" in (
+        OBSERVABILITY
+    )
+    assert "insufficient_data_actions = []" in OBSERVABILITY
+
+
+def test_recipient_is_not_embedded_or_managed_by_terraform():
+    assert "@" not in ALERTS
+    assert 'resource "aws_sns_topic_subscription"' not in ALERTS
+    assert "containerInsights" not in ALERTS
     assert "containerInsights" not in OBSERVABILITY
     assert "containerInsights" not in MAIN
-
 
 def test_existing_log_retention_and_https_control_are_preserved():
     assert "retention_in_days = 14" in MAIN
@@ -164,3 +186,5 @@ def test_observability_outputs_are_declared():
         "for alarm in aws_cloudwatch_metric_alarm.operations"
         in OUTPUTS
     )
+    assert 'output "operational_alerts_topic_arn"' in OUTPUTS
+    assert "aws_sns_topic.operational_alerts.arn" in OUTPUTS

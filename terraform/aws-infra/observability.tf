@@ -131,18 +131,22 @@ locals {
 resource "aws_cloudwatch_metric_alarm" "operations" {
   for_each = local.cloudwatch_alarm_definitions
 
-  alarm_name          = each.value.alarm_name
-  alarm_description   = each.value.alarm_description
-  comparison_operator = each.value.comparison_operator
-  evaluation_periods  = each.value.evaluation_periods
-  datapoints_to_alarm = each.value.datapoints_to_alarm
-  metric_name         = each.value.metric_name
-  namespace           = each.value.namespace
-  period              = each.value.period
-  statistic           = each.value.statistic
-  threshold           = each.value.threshold
-  treat_missing_data  = each.value.treat_missing_data
-  dimensions          = each.value.dimensions
+  alarm_name                = each.value.alarm_name
+  alarm_description         = each.value.alarm_description
+  comparison_operator       = each.value.comparison_operator
+  evaluation_periods        = each.value.evaluation_periods
+  datapoints_to_alarm       = each.value.datapoints_to_alarm
+  metric_name               = each.value.metric_name
+  namespace                 = each.value.namespace
+  period                    = each.value.period
+  statistic                 = each.value.statistic
+  threshold                 = each.value.threshold
+  treat_missing_data        = each.value.treat_missing_data
+  dimensions                = each.value.dimensions
+  actions_enabled           = true
+  alarm_actions             = [aws_sns_topic.operational_alerts.arn]
+  ok_actions                = [aws_sns_topic.operational_alerts.arn]
+  insufficient_data_actions = []
 
   tags = {
     Project   = "nano-iaas"
