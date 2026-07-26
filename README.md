@@ -21,11 +21,14 @@
 
 MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio próprio e backend em AWS ECS Fargate + ALB. O certificado HTTPS da API é emitido pelo AWS ACM e validado por DNS no Registro.br.
 
-### Estado oficial em 25/07/2026
+### Estado oficial em 26/07/2026
 
 - Macroetapas 1 a 7: concluídas;
 - percentual total formal do projeto: **70%**;
 - Macroetapa 7 — Segurança e auditoria: concluída, com 8/8 blocos;
+- Macroetapa 8 — Observabilidade e backup: aberta em planejamento;
+- progresso funcional da Macroetapa 8: **0%**;
+- auditoria inicial concluída, sem alteração cloud e sem crédito funcional;
 - PR #26: reforço de segurança e auditoria;
 - headers HTTP de segurança implantados;
 - CORS restrito às origens, métodos e headers autorizados;
@@ -37,7 +40,7 @@ MVP em fase Beta/QA. O projeto usa frontend no GitHub Pages com domínio própri
 - CI aprovado em Python 3.10, 3.11 e 3.12;
 - GitGuardian aprovado.
 
-A referência operacional vigente é a `main` no commit `6540648c28a5f72afa2d28d0c591282dca26ba9a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:16`, usando a imagem imutável `sha256:51eb6ba7b5de4c10ed4c2a3c98444e1d49d8c0e0d4d8ba40058ea1889404ec10`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e target saudável.
+A referência operacional implantada na conclusão da Macroetapa 7 é o commit `6540648c28a5f72afa2d28d0c591282dca26ba9a`. O backend está implantado na task definition ECS `nano-iaas-backend-dev:16`, usando a imagem imutável `sha256:51eb6ba7b5de4c10ed4c2a3c98444e1d49d8c0e0d4d8ba40058ea1889404ec10`. O rollout está concluído, com uma tarefa desejada, uma em execução, nenhuma pendente e target saudável.
 
 O health check `GET /health`, Swagger e OpenAPI responderam HTTP 200. O endpoint `/audit` sem autenticação respondeu HTTP 401. Os headers de segurança foram confirmados em produção. A origem oficial do aplicativo foi permitida pelo CORS e uma origem não autorizada foi bloqueada.
 
@@ -45,6 +48,50 @@ Os states oficiais AWS e GCP foram preservados e auditados. O plano Terraform AW
 
 - AWS: lineage `6ce1818b-18d2-2a9e-afbd-8640951622e0`, serial `136`, SHA-256 `7fac915f32af222dd2259de1a9ba605f78ed3e590d5f178924db76b8270d68f8`;
 - GCP: lineage `cc3c79fb-daae-5930-da06-9def95bd9114`, serial `13`, SHA-256 `bd79f583fcf8660f3c761eb10e506b0b1304937f1a874a0b3b27b378a48794da`.
+
+### Macroetapa 8 — Observabilidade e backup `[~]`
+
+A Macroetapa 8 está aberta em planejamento sobre a base oficial `f9c12c7fe0a419cb46bfcf9244dcf93adea6b095`. A auditoria inicial identificou os controles existentes e as lacunas de observabilidade e recuperação, mas não realizou alteração cloud e não representa progresso funcional.
+
+Objetivo: implantar observabilidade operacional e proteção de dados com retenção explícita, alertas úteis, preservação dos states e recuperação controlada, sem alterar o comportamento read-only do produto nem reabrir entregas concluídas.
+
+Blocos planejados:
+
+1. Baseline, política de retenção e requisitos de recuperação.
+2. Logging estruturado, sanitizado e correlacionado.
+3. Dashboard, métricas e alarmes operacionais da produção AWS.
+4. Retenção de logs e canal de alerta operacional.
+5. Proteção de dados e backups em AWS, GCP e Azure.
+6. Integridade dos states e validação controlada de recuperação.
+7. Regressão, revisão de custos e planos, deploy controlado e smoke.
+8. Documentação e encerramento formal.
+
+Critérios de conclusão:
+
+- logs estruturados sem segredos ou dados excessivos;
+- correlação e duração das requisições;
+- dashboard e alarmes de disponibilidade, erros, latência, ECS e RDS;
+- canal de alerta operacional validado;
+- retenção explícita e gerenciada por Terraform;
+- RDS com recuperação mínima de sete dias;
+- proteções existentes na AWS e no GCP preservadas;
+- Azure com versionamento e soft delete;
+- states oficiais preservados e acompanhados por backups íntegros;
+- recuperação validada sem tocar em dados oficiais;
+- custos e planos revisados antes de qualquer `apply`;
+- testes, CI, GitGuardian e smoke aprovados;
+- plano pós-deploy sem diferenças;
+- nenhuma antecipação da Macroetapa 9.
+
+Limites obrigatórios:
+
+- preservar `enable_https=true`, os controles de segurança e o comportamento read-only;
+- não executar `apply`, deploy ou alteração cloud antes da revisão dos planos;
+- não repetir as auditorias das Macroetapas 6 e 7;
+- não tratar nesta macroetapa recuperação administrativa, recuperação de e-mail, “Esqueci minha senha”, redefinição por e-mail, 2FA, códigos de recuperação ou PagSeguro;
+- não ampliar o escopo para tratar os três warnings conhecidos da suíte;
+- operações Azure dependentes de CLI devem usar PowerShell nativo do Windows, sem contornar o Acesso Condicional; Git e Terraform permanecem no WSL;
+- somente no encerramento da Macroetapa 8, revisar formalmente o roadmap para concentrar recuperação de acesso, 2FA e PagSeguro na nova Macroetapa 9 e consolidar deploy final, smoke, checklist e comunicação na nova Macroetapa 10, sem implementar esses itens nesta macroetapa.
 
 ### Planos e fluxo comercial vigente
 
