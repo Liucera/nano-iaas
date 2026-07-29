@@ -1,6 +1,6 @@
 # Roadmap oficial de preparação para lançamento — Nano-IaaS
 
-**Última atualização:** 26/07/2026
+**Última atualização:** 28/07/2026
 **Percentual total formal do projeto:** **75%**
 
 ## Governança
@@ -20,13 +20,13 @@ Auditorias, planejamento, preparação de ambiente e criação de worktree não 
 | Nº | Macroetapa | Status | Percentual individual | Resumo |
 |---:|---|:---:|---:|---|
 | 1 | Rate limit em produção | `[x]` | 100% da macroetapa (10% do projeto) | Rate limit ativado e validado em produção. |
-| 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Aplicativo e API disponíveis em domínios próprios com HTTPS. |
+| 2 | Frontend em domínio próprio | `[x]` | 100% da macroetapa (10% do projeto) | Frontend e domínio preservados; API hibernada em 28/07/2026. |
 | 3 | Domínio principal | `[x]` | 100% da macroetapa (10% do projeto) | Site institucional principal publicado no Cloudflare Pages e domínio principal concluído formalmente. |
 | 4 | Telas essenciais | `[x]` | 100% da macroetapa (10% do projeto) | Os seis blocos foram implantados, validados e concluídos formalmente. |
 | 5 | Restrições S3 | `[x]` | 100% da macroetapa (10% do projeto) | Leitura limitada a buckets oficiais e ao prefixo `dados/`, com mínimo privilégio validado em produção. |
-| 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
+| 6 | Validação AWS/GCP/Azure | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos e validados antes da hibernação cloud. |
 | 7 | Segurança e auditoria | `[x]` | 100% da macroetapa (10% do projeto) | Oito blocos concluídos, implantados e validados formalmente. |
-| 8 | Observabilidade e backup | `[~]` | 50% da macroetapa (5% do projeto) | Blocos 8.1 a 8.4 concluídos; observabilidade e canal operacional AWS ativos. |
+| 8 | Observabilidade e backup | `[~]` | 50% da macroetapa (5% do projeto) | Blocos 8.1 a 8.4 concluídos; infraestrutura cloud hibernada em 28/07/2026. |
 | 9 | Deploy final e smoke tests | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 | 10 | Checklist de lançamento e comunicação | `[ ]` | 0% (0% do projeto) | Não iniciada formalmente. |
 
@@ -223,6 +223,8 @@ A validação confirmou os sete alarmes em estado `OK`, ECS 1/1/0, rollout concl
 
 O Bloco 8.4 foi concluído com retenção explícita de 14 dias, tópico SNS operacional e os sete alarmes ligados aos estados `ALARM` e `OK`, sem ação para `INSUFFICIENT_DATA`. A assinatura foi confirmada e uma mensagem controlada foi recebida. O plano apresentou 1 criação, 7 alterações in-place e nenhuma destruição; o plano posterior retornou `No changes`. Foram aprovados 318 testes locais, CI em Python 3.10, 3.11 e 3.12 e GitGuardian no PR #31. O state AWS avançou para o serial `154`, com SHA-256 `d56a167776e4db498a6c48062e9cdae1e9ae65a38a57c9126cfc425edfd61342`.
 
+Em 28/07/2026, antes da conclusão funcional do Bloco 8.5, a infraestrutura AWS, GCP e Azure foi hibernada por impossibilidade de manter os custos recorrentes. Os dados recuperáveis, imagem, logs, segredos e states foram preservados. O projeto permanece em 75%, com detalhes em [`docs/ETAPA8-HIBERNACAO-EMERGENCIAL.md`](docs/ETAPA8-HIBERNACAO-EMERGENCIAL.md).
+
 Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macroetapa, equivalente a 1,25% do projeto por bloco. O progresso atual da Macroetapa 8 é **50%**.
 
 ### Blocos planejados
@@ -231,7 +233,7 @@ Para acompanhamento interno, os oito blocos possuem peso igual de 12,5% da macro
 2. Logging estruturado, sanitizado e correlacionado. `[x]`
 3. Dashboard, métricas e alarmes operacionais da produção AWS. `[x]`
 4. Retenção de logs e canal de alerta operacional. `[x]`
-5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]`
+5. Proteção de dados e backups em AWS, GCP e Azure. `[ ]` — execução interrompida pela hibernação emergencial.
 6. Integridade dos states e validação controlada de recuperação. `[ ]`
 7. Regressão, revisão de custos e planos, deploy controlado e smoke. `[ ]`
 8. Documentação e encerramento formal. `[ ]`
@@ -287,8 +289,8 @@ Percentuais antigos calculados com versões anteriores do roadmap, incluindo est
 
 ## Próxima ação autorizável
 
-1. Iniciar o Bloco 8.5 — Proteção de dados e backups em AWS, GCP e Azure.
-2. Identificar os recursos Terraform exatos de cada nuvem antes de preparar alterações.
-3. Preservar as proteções existentes na AWS e no GCP e o comportamento read-only.
-4. Usar PowerShell nativo do Windows para Azure e revisar custos e planos antes de qualquer `apply`.
-5. Não antecipar os Blocos 8.6 a 8.8.
+1. Manter a infraestrutura AWS, GCP e Azure hibernada.
+2. Preservar os backups externos e os três states pós-hibernação.
+3. Retomar somente após definir fonte sustentável de custeio.
+4. Antes da retomada, revisar custos, Terraform e planos de recriação.
+5. Não antecipar os Blocos 8.6 a 8.8 nem a Macroetapa 9.
